@@ -63,6 +63,9 @@ h2.sec{font:700 17px var(--fc);margin:22px 16px 8px}
 .nm{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ad{color:var(--muted);font-size:14px}
 .warn{color:#9A5B00;font-size:13px;margin-top:2px}
+.dupw{color:#6D28D9;font-size:13px;font-weight:600;margin-top:2px}
+.rw.dup .no,.rw.dup .dotc{box-shadow:0 0 0 3px #fff,0 0 0 5px #7C3AED}
+.rw.dup{background:#F5F0FF}
 .rw.done .nm{color:var(--muted);text-decoration:line-through}
 .ib{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none;cursor:pointer;color:var(--ink)}
 .ib.ok{background:var(--green-weak);border-color:transparent;color:var(--green)}
@@ -90,7 +93,7 @@ h2.sec{font:700 17px var(--fc);margin:22px 16px 8px}
 .stats b{font-size:17px;color:var(--ink);margin-right:3px}
 .nextl{margin-top:10px;font-size:13px;color:var(--muted)}
 .nextn{font:700 20px/1.2 var(--fc)}
-.lbl{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
+.lbl{text-shadow:-1.5px -1.5px 0 #fff,1.5px -1.5px 0 #fff,-1.5px 1.5px 0 #fff,1.5px 1.5px 0 #fff,0 0 3px #fff;letter-spacing:.1px}
 /* navigasyon paneli */
 .navp{position:absolute;top:0;left:0;right:0;background:var(--ink);color:#fff;padding:14px 16px 12px;display:none;z-index:5;border-radius:0 0 20px 20px;box-shadow:0 4px 18px rgba(28,36,48,.35)}
 .navp .ins{display:flex;gap:14px;align-items:center}.navp .ic{font-size:40px;line-height:1;width:auto;height:auto}
@@ -245,6 +248,14 @@ const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3800)}
 // teslim edilen = siyah, henüz edilmeyen = yeşil, edilemedi = gri
 const colorOf=i=>i.status==='delivered'?'#000000':i.status==='failed'?'#9ca3af':'#16a34a';
+const labelColor=i=>i.status==='pending'&&DUP.has(i.id)?DUPC:i.status==='delivered'?'#1C2430':i.status==='failed'?'#6B7480':'#06573A';
+const DUPC='#7C3AED';let DUP=new Map();
+const nameKey=n=>n?norm(n).replace(/[^A-Z]/g,''):'';
+function calcDup(){const g=new Map();S.items.forEach(i=>{const k=nameKey(i.name);if(k.length<4)return;if(!g.has(k))g.set(k,[]);g.get(k).push(i.id)});
+ DUP=new Map();g.forEach(ids=>{if(ids.length>1)ids.forEach(id=>DUP.set(id,ids))})}
+const dupOf=i=>DUP.get(i.id);
+function dupText(i){const ids=dupOf(i);if(!ids)return '';const nums=ids.map(id=>orderOf(id)).filter(Boolean);
+ return 'Aynı kişi '+ids.length+' kez girildi'+(nums.length>1?' ('+nums.join('. ve ')+'. sıra)':'')}
 const find=id=>S.items.find(i=>i.id===id);
 const orderOf=id=>{const k=S.route.indexOf(id);return k>=0?String(k+1):''};
 const nextStop=()=>S.route.map(find).find(i=>i&&i.status==='pending'&&i.inRoute&&i.lat!=null);
@@ -316,7 +327,9 @@ function addEntry(text){
  if(S.items.some(i=>i.key===key))return toast('Bu adres zaten eklenmiş');
  const hasRoute=S.route.length>0;
  const it={...p,id:Date.now()+''+Math.random().toString(36).slice(2,6),key,area:S.area,geo:'pending',status:'pending',inRoute:!hasRoute,isNew:hasRoute};
+ const nk=nameKey(p.name),twin=nk.length>=4&&S.items.find(i=>nameKey(i.name)===nk);
  S.items.push(it);save();renderAll();geoItem(it);
+ if(twin){if(navigator.vibrate)navigator.vibrate([80,60,80]);toast('Dikkat: '+(p.name||'')+' zaten listede'+(orderOf(twin.id)?' ('+orderOf(twin.id)+'. sırada)':'')+'. İkisi de mor ile işaretlendi.');return}
  toast('Eklendi: '+(p.name||v.slice(0,30))+(S.area||p.mahalle?'':' (çalışma bölgesi boş, konum yanlış olabilir)'))}
 let editId=null;
 function endEdit(){editId=null;$('#bAdd').textContent='Ekle';$('#editbar').style.display='none'}
@@ -381,24 +394,36 @@ async function initMap(){await ensureMaps();
   trailLine=new google.maps.Polyline({map,path:S.trail.map(x=>({lat:x[0],lng:x[1]})),strokeColor:'#2563eb',strokeOpacity:.8,strokeWeight:5,zIndex:3});
   accCircle=new google.maps.Circle({map,center:pos||{lat:0,lng:0},radius:0,strokeColor:'#2563eb',strokeOpacity:.3,strokeWeight:1,fillColor:'#2563eb',fillOpacity:.1,clickable:false});
   meMarker=new google.maps.Marker({map,position:pos||undefined,icon:meIcon(),zIndex:999});
+  map.addListener('idle',declutter);map.addListener('zoom_changed',()=>setTimeout(declutter,50));
   map.addListener('dragstart',()=>{if(S.follow){S.follow=false;save();renderFollow()}});
   if(pos&&S.follow){map.setZoom(17);map.panTo(pos);firstFix=false}}
  google.maps.event.trigger(map,'resize');renderMap()}
-function renderMap(){if(!map)return;markers.forEach(m=>m.setMap(null));markers=[];
- S.items.filter(i=>i.lat!=null).forEach(i=>{const o=orderOf(i.id),nm=(i.name||i.street||'?');
-  const m=new google.maps.Marker({map,position:{lat:i.lat,lng:i.lng},
-  icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:colorOf(i),fillOpacity:1,strokeColor:i.geo==='approx'?'#f59e0b':'#fff',strokeWeight:i.geo==='approx'?3:2,labelOrigin:new google.maps.Point(0,-2.3)},
-  label:{text:(o?o+'. ':'')+nm.slice(0,24),color:'#111',fontSize:'11px',fontWeight:'700',className:'lbl'}});
-  m.addListener('click',()=>{sel=i.id;renderSheet()});markers.push(m)});
+function markerIcon(i){const d=DUP.has(i.id);
+ return {path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:colorOf(i),fillOpacity:1,strokeColor:d?DUPC:i.geo==='approx'?'#f59e0b':'#fff',strokeWeight:d||i.geo==='approx'?3.5:2,labelOrigin:new google.maps.Point(0,-2.3)}}
+function renderMap(){if(!map)return;calcDup();markers.forEach(x=>x.m.setMap(null));markers=[];
+ S.items.filter(i=>i.lat!=null).forEach(i=>{const o=orderOf(i.id),nm=(i.name||i.street||'?').slice(0,24);
+  const full=(o?o+'. ':'')+nm,short=o||'';
+  const m=new google.maps.Marker({map,position:{lat:i.lat,lng:i.lng},icon:markerIcon(i),zIndex:DUP.has(i.id)?50:i.status==='pending'?20:10});
+  m.addListener('click',()=>{sel=i.id;renderSheet()});markers.push({m,i,full,short,o:o?+o:9999,cur:null})});
  if(startMarker)startMarker.setMap(null);
  if(S.start)startMarker=new google.maps.Marker({map,position:S.start,label:'B',title:'Başlangıç'});
- renderSheet()}
+ declutter();renderSheet()}
+// Yakın isimler üst üste binmesin: önce tam ad, yer yoksa yalnız sıra no, o da sığmazsa etiket gizlenir.
+// Uzak yakınlaştırmada (15 altı) yalnız sıra numarası gösterilir.
+function declutter(){if(!map||!map.getProjection())return;const pr=map.getProjection(),z=map.getZoom(),sc=Math.pow(2,z),placed=[];
+ const box=(x,y,txt)=>{const w=txt.length*7.4+8,h=17;return {l:x-w/2,r:x+w/2,t:y-29,b:y-29+h}};
+ const hit=r=>placed.some(q=>r.l<q.r&&r.r>q.l&&r.t<q.b&&r.b>q.t);
+ const order=[...markers].sort((a,b)=>(a.i.status==='pending'?0:1)-(b.i.status==='pending'?0:1)||a.o-b.o);
+ for(const x of order){const pt=pr.fromLatLngToPoint(x.m.getPosition()),px=pt.x*sc,py=pt.y*sc;let txt='';
+  for(const c of (z>=15?[x.full,x.short]:[x.short])){if(!c)continue;const r=box(px,py,c);if(!hit(r)){placed.push(r);txt=c;break}}
+  placed.push({l:px-10,r:px+10,t:py-10,b:py+10});
+  if(txt!==x.cur){x.cur=txt;x.m.setLabel(txt?{text:txt,color:labelColor(x.i),fontSize:'12px',fontWeight:'800',className:'lbl'}:null)}}}
 function renderSheet(){const it=find(sel)||nextStop();
  const c=S.items.reduce((a,i)=>{a[i.status]++;return a},{pending:0,delivered:0,failed:0});
  let h=`<div class="stats"><span><b>${c.pending}</b>bekliyor</span><span><b>${c.delivered}</b>teslim</span><span><b>${c.failed}</b>edilemedi</span></div><div class="dist" id="dist"></div>`;
  if(S.dirty)h+='<div class="banner">Rota değişti. Çizgiyi güncellemek için ⋯ menüsünden "Yolu yeniden çiz"e basın.</div>';
  if(!it)h+='<div class="nextl">Haritada bir adrese dokunun ya da rotayı oluşturun.</div>';
- else h+=`<div class="nextl">${sel?'Seçili adres':'Sıradaki durak'}${orderOf(it.id)?', '+orderOf(it.id)+'. sırada':''}</div><div class="nextn">${esc(it.name||'(isim yok)')}</div><div class="a">${esc(addrOf(it))}</div>
+ else h+=`<div class="nextl">${sel?'Seçili adres':'Sıradaki durak'}${orderOf(it.id)?', '+orderOf(it.id)+'. sırada':''}</div><div class="nextn">${esc(it.name||'(isim yok)')}</div><div class="a">${esc(addrOf(it))}</div>${DUP.has(it.id)?`<div class="dupw">${esc(dupText(it))}</div>`:''}
  <div class="row">${it.status==='pending'?`<button class="btn g grow" data-a="delivered" data-id="${it.id}">${IC.check}Teslim edildi</button><button class="btn ghost" data-a="failed" data-id="${it.id}">Edilemedi</button>`:`<button class="btn ghost grow" data-a="pending" data-id="${it.id}">${IC.undo}Bekliyor'a al</button>`}<button class="ib" data-a="menu" data-id="${it.id}" aria-label="Diğer işlemler">${IC.more}</button></div>`;
  $('#sheet').innerHTML=h;renderDist()}
 $('#sheet').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
@@ -470,19 +495,19 @@ function renderBanner(){const n=S.items.filter(i=>i.isNew&&i.status==='pending')
  const b=$('#bNew');if(b)b.onclick=addNewToRoute}
 function geoNote(i){return ({pending:'Konum aranıyor'+(i.geoErr?': '+i.geoErr:'…'),approx:'Yaklaşık konum, haritadan kontrol edin',none:'Konum bulunamadı'+(i.geoErr?': '+i.geoErr:'')})[i.geo]||''}
 function rowHtml(i,num){const o=orderOf(i.id),d=i.status!=='pending',w=geoNote(i);
- return `<div class="rw${i.status==='delivered'?' done':''}"><span class="no" style="--c:${colorOf(i)}">${num&&o?o:''}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${w?`<div class="warn">${esc(w)}</div>`:''}</div>
+ return `<div class="rw${i.status==='delivered'?' done':''}${DUP.has(i.id)?' dup':''}"><span class="no" style="--c:${colorOf(i)}">${num&&o?o:''}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${w?`<div class="warn">${esc(w)}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}</div>
  ${d?`<button class="ib" data-a="pending" data-id="${i.id}" aria-label="Bekliyor'a al">${IC.undo}</button>`:`<button class="ib ok" data-a="delivered" data-id="${i.id}" aria-label="Teslim edildi">${IC.check}</button>`}<button class="ib" data-a="menu" data-id="${i.id}" aria-label="Diğer işlemler">${IC.more}</button></div>`}
 function renderList(){
  const arr=S.route.length?[...S.items].sort((a,b)=>(S.route.indexOf(a.id)+1||9999)-(S.route.indexOf(b.id)+1||9999)):S.items;
  $('#list').innerHTML=arr.map(i=>rowHtml(i,true)).join('');
  const pend=S.items.filter(i=>i.status==='pending').length;$('#lcnt').textContent=S.items.length?pend+' bekliyor':'';$('#lempty').style.display=S.items.length?'none':'block'}
 $('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
-function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="rw"><span class="dotc" style="--c:${colorOf(i)}"></span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${geoNote(i)?`<div class="warn">${esc(geoNote(i))}</div>`:''}</div><button class="ib" data-e="1" data-id="${i.id}" aria-label="Düzenle">${IC.edit}</button><button class="ib" data-id="${i.id}" aria-label="Geri al">${IC.x}</button></div>`).join('')}
+function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="rw${DUP.has(i.id)?' dup':''}"><span class="dotc" style="--c:${colorOf(i)}"></span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${geoNote(i)?`<div class="warn">${esc(geoNote(i))}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}</div><button class="ib" data-e="1" data-id="${i.id}" aria-label="Düzenle">${IC.edit}</button><button class="ib" data-id="${i.id}" aria-label="Geri al">${IC.x}</button></div>`).join('')}
 $('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;if(b.dataset.e){startEdit(id);return}S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
 /* işlem menüsü */
 function openAct(id){const i=find(id);if(!i)return;const o=orderOf(id),A=$('#act');
  const it=(a,label,cls)=>`<button class="ai${cls?' '+cls:''}" data-a="${a}">${label}</button>`;
- A.innerHTML=`<div class="panel" role="dialog" aria-label="Adres işlemleri"><div class="ah"><div class="nm">${o?o+'. ':''}${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${i.found?`<div class="a">Google: ${esc(i.found)}</div>`:''}</div>
+ A.innerHTML=`<div class="panel" role="dialog" aria-label="Adres işlemleri"><div class="ah"><div class="nm">${o?o+'. ':''}${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${i.found?`<div class="a">Google: ${esc(i.found)}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}. Fazlaysa birini silin.</div>`:''}</div>
  <div class="ar">${i.status==='pending'?`<button class="btn g" data-a="delivered">${IC.check}Teslim edildi</button><button class="btn ghost" data-a="failed">Edilemedi</button>`:`<button class="btn ghost" data-a="pending">${IC.undo}Bekliyor'a al</button>`}</div>
  ${it('edit','Adresi düzenle')}${i.lat!=null?it('nav','Google Haritalar\'da yol tarifi'):''}${it('pin','Konumu haritada seç')}
  ${o?it('up','Bir sıra yukarı')+it('down','Bir sıra aşağı')+it('to','Sıra numarası ver'):''}
@@ -496,7 +521,7 @@ $('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;gDenied=f
 $('#bTest').onclick=async()=>{if(!S.key)return toast('Önce anahtarı yazıp Kaydet\'e basın');try{const j=await gcall('Atatürk Bulvarı Kızılay Ankara');toast(j.status==='OK'?'Google bağlantısı çalışıyor':'Google yanıtı: '+j.status+(j.error_message?' – '+j.error_message:''))}catch(e){alert('Google erişilemedi: '+e)}};
 $('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem);return;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
 $('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false};sel=null;clearLines();save();renderAll()}};
-function renderAll(){$('#cnt').textContent=S.items.length+' / '+MAX;$('#bMode').checked=S.mode==='auto';$('#voiceSw').checked=S.voice!==false;
+function renderAll(){calcDup();$('#cnt').textContent=S.items.length+' / '+MAX;$('#bMode').checked=S.mode==='auto';$('#voiceSw').checked=S.voice!==false;
  renderList();renderRecent();renderBanner();renderMap();renderSheet();if(typeof navSync==='function')navSync()}
 
 /* ---------- canlı takip düğmeleri ---------- */
