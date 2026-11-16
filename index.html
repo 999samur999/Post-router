@@ -83,6 +83,7 @@ h2.sec{font:700 17px var(--fc);margin:22px 16px 8px}
 .pill{height:46px;min-width:46px;padding:0 14px;border-radius:23px;border:0;background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:15px;box-shadow:0 2px 8px rgba(28,36,48,.18);cursor:pointer}
 .pill.icon{padding:0;justify-content:center}
 .pill.on{background:var(--green);color:#fff}
+.recenter{position:absolute;left:12px;bottom:36px;z-index:4}
 .pill.go{background:var(--ink);color:#fff;flex:1;justify-content:center}
 #more{position:absolute;top:56px;right:0;background:var(--surface);border-radius:14px;box-shadow:0 6px 24px rgba(28,36,48,.22);overflow:hidden;min-width:250px}
 #more button{display:block;width:100%;text-align:left;padding:14px 16px;border:0;border-top:1px solid var(--line);background:none;font-size:15px;cursor:pointer}
@@ -95,14 +96,26 @@ h2.sec{font:700 17px var(--fc);margin:22px 16px 8px}
 .nextn{font:700 20px/1.2 var(--fc)}
 .lbl{text-shadow:-1.5px -1.5px 0 #fff,1.5px -1.5px 0 #fff,-1.5px 1.5px 0 #fff,1.5px 1.5px 0 #fff,0 0 3px #fff;letter-spacing:.1px}
 /* navigasyon paneli */
-.navp{position:absolute;top:0;left:0;right:0;background:var(--ink);color:#fff;padding:14px 16px 12px;display:none;z-index:5;border-radius:0 0 20px 20px;box-shadow:0 4px 18px rgba(28,36,48,.35)}
-.navp .ins{display:flex;gap:14px;align-items:center}.navp .ic{font-size:40px;line-height:1;width:auto;height:auto}
-.navp .big{font:700 34px/1 var(--fc)}.navp .txt{font:600 18px/1.25 var(--fc);margin-top:2px}
-.navp .sub{font-size:14px;margin-top:10px;color:#C9D1DB}
-.navp .row .btn{min-height:42px;padding:0 12px}
-.navp .btn.x,.navp .btn.k{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.18)}
-.navp.arr{background:var(--hivis)!important;color:var(--ink)!important}.navp.arr .sub{color:var(--ink2)}
-.navp.arr .btn.x,.navp.arr .btn.k{background:rgba(28,36,48,.08);color:var(--ink);border-color:rgba(28,36,48,.2)}
+.navp{position:absolute;top:0;left:0;right:0;background:var(--ink);color:#fff;padding:12px 14px 12px;display:none;z-index:5;border-radius:0 0 20px 20px;box-shadow:0 4px 18px rgba(28,36,48,.35)}
+.navp .ins{display:flex;gap:12px;align-items:center}
+.navp .mi{width:54px;height:54px;flex:none;border-radius:14px;background:rgba(255,255,255,.1);display:grid;place-items:center}
+.navp .mi svg{width:34px;height:34px}
+.navp .it{min-width:0;flex:1}
+.navp .big{font:700 30px/1 var(--fc)}.navp .txt{font:600 17px/1.25 var(--fc);margin-top:3px}
+.navp .sub{font-size:13.5px;margin-top:10px;color:#C9D1DB}
+.navp .sub .l1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.navp .acts{display:flex;gap:8px;margin-top:10px}
+.navp .acts .btn{min-height:50px;white-space:nowrap;padding:0 14px}
+.navp .acts .btn.g{flex:1}
+.navp .acts .btn.x{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2)}
+.navp .tools{display:flex;gap:8px;margin-top:8px}
+.navp .tb{flex:1;min-height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:transparent;color:#DCE3EA;font-size:14px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;white-space:nowrap}
+.navp .tb.snd{flex:0 0 48px}.navp .tb svg{width:20px;height:20px}
+.navp .tb.stop{color:#FFB4A6;border-color:rgba(255,180,166,.35)}
+.navp.arr{background:var(--hivis);color:var(--ink)}.navp.arr .sub{color:var(--ink2)}
+.navp.arr .mi{background:rgba(28,36,48,.1)}
+.navp.arr .acts .btn.x{background:rgba(28,36,48,.08);color:var(--ink);border-color:rgba(28,36,48,.25)}
+.navp.arr .tb{color:var(--ink);border-color:rgba(28,36,48,.25)}.navp.arr .tb.stop{color:var(--danger);border-color:rgba(194,65,45,.4)}
 /* alt menü */
 nav{display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 10px;background:none;border:0;border-top:3px solid transparent;color:var(--muted);font:600 13px var(--f);cursor:pointer}
@@ -165,6 +178,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
    </div></div>
  </div>
  <div class="navp" id="navp"></div>
+ <button class="pill recenter" id="bRecenter" style="display:none" aria-label="Konumuma dön"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Konumuma dön</button>
  <div class="sheet" id="sheet"></div>
 </section>
 
@@ -389,7 +403,7 @@ if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{onPos(p);
 
 /* ---------- harita ---------- */
 async function initMap(){await ensureMaps();
- if(!map){map=new google.maps.Map($('#map'),{center:pos||{lat:36.8969,lng:30.7133},zoom:13,streetViewControl:false,mapTypeControl:false});
+ if(!map){map=new google.maps.Map($('#map'),{center:pos||{lat:36.8969,lng:30.7133},zoom:13,streetViewControl:false,mapTypeControl:false,fullscreenControl:false,clickableIcons:false,styles:[{featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]}]});
   map.addListener('click',e=>{if(pinTarget){upd(pinTarget,{lat:e.latLng.lat(),lng:e.latLng.lng(),geo:'ok',geoErr:''});pinTarget=null;toast('Konum kaydedildi')}else if(pickStart){S.start={lat:e.latLng.lat(),lng:e.latLng.lng()};pickStart=false;save();renderMap()}else{sel=null;renderSheet()}});
   trailLine=new google.maps.Polyline({map,path:S.trail.map(x=>({lat:x[0],lng:x[1]})),strokeColor:'#2563eb',strokeOpacity:.8,strokeWeight:5,zIndex:3});
   accCircle=new google.maps.Circle({map,center:pos||{lat:0,lng:0},radius:0,strokeColor:'#2563eb',strokeOpacity:.3,strokeWeight:1,fillColor:'#2563eb',fillOpacity:.1,clickable:false});
@@ -527,7 +541,8 @@ function renderAll(){calcDup();$('#cnt').textContent=S.items.length+' / '+MAX;$(
 /* ---------- canlı takip düğmeleri ---------- */
 let wl=null;async function keepAwake(){try{if(navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&tab==='map')keepAwake()});
-function renderFollow(){const b=$('#bFollow');b.classList.toggle('on',!!S.follow);b.setAttribute('aria-pressed',S.follow?'true':'false')}
+function renderFollow(){const b=$('#bFollow');b.classList.toggle('on',!!S.follow);b.setAttribute('aria-pressed',S.follow?'true':'false');$('#bRecenter').style.display=nav.on&&!S.follow?'inline-flex':'none'}
+$('#bRecenter').onclick=()=>{S.follow=true;save();renderFollow();if(map&&pos){map.setZoom(Math.max(map.getZoom(),17));map.panTo(pos)}};
 $('#bFollow').onclick=()=>{S.follow=!S.follow;save();renderFollow();if(S.follow&&map&&pos){map.setZoom(Math.max(map.getZoom(),16));map.panTo(pos)}};
 $('#bMore').onclick=e=>{e.stopPropagation();const m=$('#more');m.style.display=m.style.display==='none'?'block':'none'};
 $('#more').onclick=()=>{$('#more').style.display='none'};
@@ -578,24 +593,27 @@ function offRoute(){const L=nav.legs[nav.leg];if(!L)return 0;let best=1e9;
 function say(txt){if(!S.voice||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang='tr-TR';u.rate=1;speechSynthesis.speak(u)}catch(e){}}
 const fmtD=m=>m>=1000?(m/1000).toFixed(1)+' km':(m>=100?Math.round(m/10)*10:Math.max(0,Math.round(m)))+' m';
 const fmtT=s=>s<60?'<1 dk':Math.round(s/60)+' dk';
+const AR={"st": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 20V5M6 11l6-6 6 6\"/></svg>", "r": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 20v-6a5 5 0 0 1 5-5h8M14 4l5 5-5 5\"/></svg>", "l": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 20v-6a5 5 0 0 0-5-5H5M10 4 5 9l5 5\"/></svg>", "sr": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 20v-8l9-8M11 4h6v6\"/></svg>", "sl": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 20v-8L7 4M13 4H7v6\"/></svg>", "u": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 20V10a5 5 0 0 0-10 0v5M2 11l4 4 4-4\"/></svg>", "rb": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"9\" r=\"4\"/><path d=\"M12 13v8M15 6l3-3M18 7V3h-4\"/></svg>", "pin": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>", "box": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7l9-4 9 4-9 4-9-4Z\"/><path d=\"M3 7v10l9 4 9-4V7M12 11v10\"/></svg>", "on": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 9v6h4l5 4V5L8 9H4Z\"/><path d=\"M16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11\"/></svg>", "off": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 9v6h4l5 4V5L8 9H4Z\"/><path d=\"M17 9.5l5 5M22 9.5l-5 5\"/></svg>"};
 function manIcon(m){m=(m||'').toUpperCase().replace(/-/g,'_');
- if(m.includes('U_TURN')||m.includes('UTURN'))return '↩️';if(m.includes('ROUNDABOUT'))return '🔄';
- if(m.includes('SLIGHT_LEFT')||m.includes('FORK_LEFT')||m.includes('RAMP_LEFT')||m.includes('KEEP_LEFT'))return '↖️';
- if(m.includes('SLIGHT_RIGHT')||m.includes('FORK_RIGHT')||m.includes('RAMP_RIGHT')||m.includes('KEEP_RIGHT'))return '↗️';
- if(m.includes('LEFT'))return '⬅️';if(m.includes('RIGHT'))return '➡️';return '⬆️'}
+ if(m.includes('U_TURN')||m.includes('UTURN'))return AR.u;if(m.includes('ROUNDABOUT'))return AR.rb;
+ if(m.includes('SLIGHT_LEFT')||m.includes('FORK_LEFT')||m.includes('RAMP_LEFT')||m.includes('KEEP_LEFT'))return AR.sl;
+ if(m.includes('SLIGHT_RIGHT')||m.includes('FORK_RIGHT')||m.includes('RAMP_RIGHT')||m.includes('KEEP_RIGHT'))return AR.sr;
+ if(m.includes('LEFT'))return AR.l;if(m.includes('RIGHT'))return AR.r;return AR.st}
 function navCur(){return find(nav.stops[nav.leg])}
 function navRemain(){const L=nav.legs[nav.leg];if(!L||!pos)return {d:0,t:0};const st=L.steps[nav.step];let d=st&&st.end?hav(pos,st.end):0;
  for(let s=nav.step+1;s<L.steps.length;s++)d+=L.steps[s].dist;const sp=L.dur>0?L.dist/L.dur:8;return {d,t:d/Math.max(sp,2)}}
 function navRender(){const e=$('#navp');if(!nav.on){e.style.display='none';return}e.style.display='block';
  const cur=navCur(),L=nav.legs[nav.leg],left=S.route.map(find).filter(i=>i&&i.status==='pending'&&i.inRoute).length;
- if(!cur||!L){e.innerHTML='<div class="txt">Yol tarifi hazırlanıyor…</div><div class="row"><button class="btn r" data-n="stop">Bitir</button></div>';return}
+ const tools='<div class="tools"><button class="tb" data-n="skip">Sonrakine geç</button><button class="tb snd" data-n="voice" aria-label="'+(S.voice?'Sesi kapat':'Sesi aç')+'">'+(S.voice?AR.on:AR.off)+'</button><button class="tb stop" data-n="stop">Bitir</button></div>';
+ if(!cur||!L){e.className='navp';e.innerHTML='<div class="ins"><div class="mi">'+AR.st+'</div><div class="it"><div class="txt">Yol tarifi hazırlanıyor…</div></div></div>'+tools;return}
  const st=L.steps[nav.step],nx=L.steps[nav.step+1],dEnd=st&&st.end&&pos?hav(pos,st.end):0,rm=navRemain();
- const ins=nav.arrived?'<div class="ins"><div class="ic">📦</div><div><div class="big">Vardınız</div><div class="txt">'+esc(cur.name||'(isim yok)')+'</div></div></div>'
-  :nx?'<div class="ins"><div class="ic">'+manIcon(nx.man)+'</div><div><div class="big">'+fmtD(dEnd)+'</div><div class="txt">'+esc(nx.text||'Devam edin')+'</div></div></div>'
-  :'<div class="ins"><div class="ic">📍</div><div><div class="big">'+fmtD(dEnd)+'</div><div class="txt">Durak: '+esc(cur.name||'(isim yok)')+'</div></div></div>';
+ const blk=(ic,big,txt)=>'<div class="ins"><div class="mi">'+ic+'</div><div class="it"><div class="big">'+big+'</div><div class="txt">'+txt+'</div></div></div>';
+ const ins=nav.arrived?blk(AR.box,'Vardınız',esc(cur.name||'(isim yok)'))
+  :nx?blk(manIcon(nx.man),fmtD(dEnd),esc(nx.text||'Devam edin'))
+  :blk(AR.pin,fmtD(dEnd),'Durak: '+esc(cur.name||'(isim yok)'));
  e.className='navp'+(nav.arrived?' arr':'');
- e.innerHTML=ins+'<div class="sub">'+(S.route.indexOf(cur.id)+1)+'. durak: '+esc(cur.name||'(isim yok)')+', '+esc(addrOf(cur))+'<br>'+fmtD(rm.d)+', yaklaşık '+fmtT(rm.t)+'. Kalan '+left+' durak.</div>'+
- '<div class="row"><button class="btn g" data-n="delivered">'+IC.check+'Teslim edildi</button><button class="btn x" data-n="failed">Edilemedi</button><button class="btn" data-n="skip">Sonraki</button><button class="btn k" data-n="voice">'+(S.voice?'🔊':'🔇')+'</button><button class="btn r" data-n="stop">Bitir</button></div>'}
+ e.innerHTML=ins+'<div class="sub"><div class="l1">'+(S.route.indexOf(cur.id)+1)+'. durak: '+esc(cur.name||'(isim yok)')+', '+esc(addrOf(cur))+'</div>'+fmtD(rm.d)+' kaldı, yaklaşık '+fmtT(rm.t)+'. Toplam '+left+' durak bekliyor.</div>'+
+ '<div class="acts"><button class="btn g" data-n="delivered">'+IC.check+'Teslim edildi</button><button class="btn x" data-n="failed">Edilemedi</button></div>'+tools}
 function navAdvance(){nav.leg++;nav.step=0;nav.spoken={};nav.arrived=null;
  const c=navCur();if(!c||c.status!=='pending'||nav.leg>=nav.legs.length){navCompute();return}
  say('Sıradaki durak: '+(c.name||'')+'. '+fmtD(nav.legs[nav.leg].dist));navRender()}
@@ -617,9 +635,9 @@ async function navStart(){try{await initMap()}catch(e){return}
  if(!S.route.length){await buildRoute();if(!S.route.length)return}
  nav.on=true;nav.skip=new Set();S.follow=true;save();renderFollow();keepAwake();
  $('.top').style.display='none';$('#sheet').style.display='none';map.setZoom(18);map.panTo(pos);
- navRender();await navCompute()}
+ navRender();renderFollow();await navCompute()}
 function navStop(done){nav.on=false;nav.legs=[];if(navLine){navLine.setMap(null);navLine=null}try{speechSynthesis.cancel()}catch(e){}
- $('.top').style.display='';$('#sheet').style.display='';navRender();if(done){say('Tüm duraklar tamamlandı');toast('Rotadaki tüm duraklar tamamlandı')}}
+ $('.top').style.display='';$('#sheet').style.display='';navRender();renderFollow();if(done){say('Tüm duraklar tamamlandı');toast('Rotadaki tüm duraklar tamamlandı')}}
 $('#bNavStart').onclick=navStart;
 $('#navp').onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.n,c=navCur();
  if(a==='stop'){if(ask('Navigasyon bitirilsin mi?'))navStop(false)}
