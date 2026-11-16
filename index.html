@@ -16,6 +16,10 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 .help{background:#f3f4f6;border-radius:8px;padding:8px;font-size:12px;margin:6px 0;color:#111}
 .banner{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px;font-size:13px;margin-top:8px;color:#111}
 #map{flex:1;min-height:300px}.top{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:6px}
+.navp{position:absolute;top:0;left:0;right:0;background:#0f5132;color:#fff;padding:10px 12px;display:none;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.navp .ins{display:flex;gap:10px;align-items:center}.navp .ic{font-size:34px;line-height:1}.navp .big{font-size:20px;font-weight:800}.navp .txt{font-size:15px;font-weight:600}
+.navp .sub{font-size:13px;margin-top:6px;background:rgba(0,0,0,.25);border-radius:8px;padding:6px 8px}.navp .row .btn{padding:9px 10px}
+.arr{background:#fef3c7!important;color:#111!important}
 .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;padding:12px;box-shadow:0 -2px 10px rgba(0,0,0,.25);max-height:45%;overflow:auto}
 #list{flex:1}.card{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #e5e7eb}
 .dot{width:14px;height:14px;border-radius:50%;flex:none}.card .col{flex:1;min-width:0}.card .bt{display:flex;flex-wrap:wrap;gap:4px;max-width:150px}
@@ -47,9 +51,10 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 
 <section id="p-map" class="pane">
  <div id="map"></div>
- <div class="top"><button class="btn g" id="bFollow">📍 Takip: Açık</button><button class="btn" id="bNav">🧭 Sıradakine git</button><button class="btn p" id="bShare">📤 Paylaş</button><button class="btn x" id="bMore">☰ Diğer</button>
+ <div class="top"><button class="btn g" id="bFollow">📍 Takip: Açık</button><button class="btn" id="bNavStart">🚗 Rotayı başlat</button><button class="btn p" id="bShare">📤 Paylaş</button><button class="btn x" id="bMore">☰ Diğer</button>
   <div id="more" style="display:none;width:100%"><div class="row" style="margin-top:0"><button class="btn p" id="bStart">Başlangıç seç</button><button class="btn x" id="bMe">Başlangıç: konumum</button>
-  <button class="btn" id="bRoute">Rotayı hesapla</button><button class="btn" id="bDraw">Yolu çiz</button><button class="btn x" id="bMode">Manuel</button><button class="btn r" id="bTrail">Gidilen izi sil</button></div></div></div>
+  <button class="btn" id="bRoute">Rotayı hesapla</button><button class="btn" id="bDraw">Yolu çiz</button><button class="btn x" id="bMode">Manuel</button><button class="btn r" id="bTrail">Gidilen izi sil</button><button class="btn" id="bNav">🧭 Sıradakini Google Haritalar'da aç</button></div></div></div>
+ <div class="navp" id="navp"></div>
  <div class="sheet" id="sheet"></div>
 </section>
 
@@ -231,7 +236,7 @@ function onPos(p){const c=p.coords;pos={lat:c.latitude,lng:c.longitude};
  if(map&&window.google){if(meMarker){meMarker.setPosition(pos);meMarker.setIcon(meIcon())}
   if(accCircle){accCircle.setCenter(pos);accCircle.setRadius(Math.min(c.accuracy||0,200))}
   if(S.follow){if(firstFix){map.setZoom(17);firstFix=false}map.panTo(pos)}}
- renderDist()}
+ renderDist();navTick()}
 function renderDist(){const e=$('#dist');if(e)e.textContent='Gidilen yol: '+(S.dist/1000).toFixed(1)+' km'}
 if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{onPos(p);
  if(S.mode!=='auto')return;const n=nextStop();if(!n)return;
@@ -352,7 +357,7 @@ $('#bTest').onclick=async()=>{if(!S.key)return alert('Önce anahtarı yazıp Kay
 $('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem);return;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
 $('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false};sel=null;clearLines();save();renderAll()}};
 function renderAll(){$('#cnt').textContent='Eklenen: '+S.items.length+'/'+MAX;$('#bMode').textContent=S.mode==='auto'?'Otomatik':'Manuel';
- $('#bMode').className='btn '+(S.mode==='auto'?'g':'x');renderList();renderRecent();renderBanner();renderMap();renderSheet()}
+ $('#bMode').className='btn '+(S.mode==='auto'?'g':'x');renderList();renderRecent();renderBanner();renderMap();renderSheet();if(typeof navSync==='function')navSync()}
 
 /* ---------- canlı takip düğmeleri ---------- */
 let wl=null;async function keepAwake(){try{if(navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
@@ -365,6 +370,96 @@ const navUrl=i=>'https://www.google.com/maps/dir/?api=1&destination='+i.lat+','+
 const viewUrl=i=>'https://www.google.com/maps/search/?api=1&query='+i.lat+','+i.lng;
 function openExt(u){const w=window.open(u,'_blank');if(!w)location.href=u}
 $('#bNav').onclick=()=>{const n=find(sel)||nextStop();if(!n||n.lat==null)return toast('Sıradaki durak yok (önce rota oluşturun)');openExt(navUrl(n))};
+
+
+/* ---------- uygulama içi navigasyon ---------- */
+let nav={on:false,stops:[],legs:[],leg:0,step:0,busy:false,lastRe:0,off:0,spoken:{},arrived:null,skip:new Set()};
+let navLine=null;if(S.voice===undefined)S.voice=true;
+function decPoly(str){let i=0,lat=0,lng=0;const out=[];while(i<str.length){for(const k of [0,1]){let s=0,v=0,b;do{b=str.charCodeAt(i++)-63;v|=(b&31)<<s;s+=5}while(b>=32);const d=v&1?~(v>>1):v>>1;if(k===0)lat+=d;else lng+=d}out.push({lat:lat/1e5,lng:lng/1e5})}return out}
+const LL=q=>q?({lat:typeof q.lat==='function'?q.lat():(q.lat!=null?q.lat:q.latitude),lng:typeof q.lng==='function'?q.lng():(q.lng!=null?q.lng:q.longitude)}):null;
+const secs=v=>v==null?0:typeof v==='number'?v:parseFloat(String(v))||0;
+async function navRouteREST(o,stops){const L=x=>({location:{latLng:{latitude:x.lat,longitude:x.lng}}});
+ const r=await fetch('https://routes.googleapis.com/directions/v2:computeRoutes',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':S.key,
+  'X-Goog-FieldMask':'routes.legs.distanceMeters,routes.legs.duration,routes.legs.steps.distanceMeters,routes.legs.steps.navigationInstruction,routes.legs.steps.polyline,routes.legs.steps.endLocation'},
+  body:JSON.stringify({origin:L(o),destination:L(stops[stops.length-1]),intermediates:stops.slice(0,-1).map(L),travelMode:'DRIVE',routingPreference:'TRAFFIC_UNAWARE',languageCode:'tr',units:'METRIC'})});
+ const j=await r.json();if(!r.ok||!j.routes||!j.routes[0])throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
+ return j.routes[0].legs.map(l=>({dist:l.distanceMeters||0,dur:secs(l.duration),steps:(l.steps||[]).map(s=>{const pth=s.polyline&&s.polyline.encodedPolyline?decPoly(s.polyline.encodedPolyline):[];
+  return {text:(s.navigationInstruction&&s.navigationInstruction.instructions)||'',man:(s.navigationInstruction&&s.navigationInstruction.maneuver)||'',dist:s.distanceMeters||0,path:pth,end:s.endLocation&&s.endLocation.latLng?LL(s.endLocation.latLng):pth[pth.length-1]}})}))}
+async function navRouteJS(o,stops){const {Route}=await google.maps.importLibrary('routes');
+ const r=await Route.computeRoutes({origin:{lat:o.lat,lng:o.lng},destination:{lat:stops[stops.length-1].lat,lng:stops[stops.length-1].lng},intermediates:stops.slice(0,-1).map(p=>({lat:p.lat,lng:p.lng})),travelMode:'DRIVING',language:'tr',fields:['legs']});
+ const rt=r.routes&&r.routes[0];if(!rt||!rt.legs)throw new Error('rota yok');
+ return rt.legs.map(l=>({dist:l.distanceMeters||0,dur:(l.durationMillis||l.staticDurationMillis||0)/1000,steps:(l.steps||[]).map(s=>{const pth=(s.path||[]).map(LL);const ni=s.navigationInstruction||{};
+  return {text:s.instructions||ni.instructions||'',man:s.maneuver||ni.maneuver||'',dist:s.distanceMeters||0,path:pth,end:s.endLocation?LL(s.endLocation.latLng||s.endLocation):pth[pth.length-1]}})}))}
+async function navRouteLegacy(o,stops){const r=await new Promise(res=>new google.maps.DirectionsService().route({origin:o,destination:stops[stops.length-1],waypoints:stops.slice(0,-1).map(p=>({location:{lat:p.lat,lng:p.lng},stopover:true})),travelMode:'DRIVING'},(rs,st)=>res({rs,st})));
+ if(r.st!=='OK')throw new Error(r.st);
+ return r.rs.routes[0].legs.map(l=>({dist:l.distance.value,dur:l.duration.value,steps:l.steps.map(s=>({text:(s.instructions||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),man:s.maneuver||'',dist:s.distance.value,path:s.path.map(LL),end:LL(s.end_location)}))}))}
+async function navCompute(){if(nav.busy)return;const o=pos;if(!o){toast('Konum bekleniyor…');return}
+ const stops=S.route.map(find).filter(i=>i&&i.status==='pending'&&i.inRoute&&i.lat!=null&&!nav.skip.has(i.id)).slice(0,10);
+ if(!stops.length){if(nav.skip.size){nav.skip.clear();return navCompute()}navStop(true);return}
+ nav.busy=true;let legs=null,err='';
+ for(const f of [navRouteREST,navRouteJS,navRouteLegacy]){try{legs=await f(o,stops);if(legs&&legs.length===stops.length)break;legs=null}catch(e){err=e.message||String(e)}}
+ nav.busy=false;nav.lastRe=Date.now();nav.off=0;
+ if(!legs){toast('Yol tarifi alınamadı: '+err+' (Routes API etkin ve anahtara izinli olmalı)');return}
+ nav.stops=stops.map(s=>s.id);nav.legs=legs;nav.leg=0;nav.step=0;nav.spoken={};nav.arrived=null;
+ if(navLine)navLine.setMap(null);
+ navLine=new google.maps.Polyline({map,path:[].concat(...legs.map(l=>[].concat(...l.steps.map(s=>s.path)))),strokeColor:'#1d4ed8',strokeOpacity:.9,strokeWeight:7,zIndex:4});
+ navRender();navTick(true)}
+function segDist(p,a,b){const k=Math.cos(p.lat*Math.PI/180)*111320,m=110540,ax=(a.lng-p.lng)*k,ay=(a.lat-p.lat)*m,bx=(b.lng-p.lng)*k,by=(b.lat-p.lat)*m,dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;
+ let u=l?-(ax*dx+ay*dy)/l:0;u=Math.max(0,Math.min(1,u));const x=ax+u*dx,y=ay+u*dy;return Math.sqrt(x*x+y*y)}
+function offRoute(){const L=nav.legs[nav.leg];if(!L)return 0;let best=1e9;
+ for(let s=Math.max(0,nav.step-1);s<Math.min(L.steps.length,nav.step+3);s++){const pt=L.steps[s].path;for(let i=0;i<pt.length-1;i++)best=Math.min(best,segDist(pos,pt[i],pt[i+1]))}
+ return best}
+function say(txt){if(!S.voice||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang='tr-TR';u.rate=1;speechSynthesis.speak(u)}catch(e){}}
+const fmtD=m=>m>=1000?(m/1000).toFixed(1)+' km':(m>=100?Math.round(m/10)*10:Math.max(0,Math.round(m)))+' m';
+const fmtT=s=>s<60?'<1 dk':Math.round(s/60)+' dk';
+function manIcon(m){m=(m||'').toUpperCase().replace(/-/g,'_');
+ if(m.includes('U_TURN')||m.includes('UTURN'))return '↩️';if(m.includes('ROUNDABOUT'))return '🔄';
+ if(m.includes('SLIGHT_LEFT')||m.includes('FORK_LEFT')||m.includes('RAMP_LEFT')||m.includes('KEEP_LEFT'))return '↖️';
+ if(m.includes('SLIGHT_RIGHT')||m.includes('FORK_RIGHT')||m.includes('RAMP_RIGHT')||m.includes('KEEP_RIGHT'))return '↗️';
+ if(m.includes('LEFT'))return '⬅️';if(m.includes('RIGHT'))return '➡️';return '⬆️'}
+function navCur(){return find(nav.stops[nav.leg])}
+function navRemain(){const L=nav.legs[nav.leg];if(!L||!pos)return {d:0,t:0};const st=L.steps[nav.step];let d=st&&st.end?hav(pos,st.end):0;
+ for(let s=nav.step+1;s<L.steps.length;s++)d+=L.steps[s].dist;const sp=L.dur>0?L.dist/L.dur:8;return {d,t:d/Math.max(sp,2)}}
+function navRender(){const e=$('#navp');if(!nav.on){e.style.display='none';return}e.style.display='block';
+ const cur=navCur(),L=nav.legs[nav.leg],left=S.route.map(find).filter(i=>i&&i.status==='pending'&&i.inRoute).length;
+ if(!cur||!L){e.innerHTML='<div class="txt">Yol tarifi hazırlanıyor…</div><div class="row"><button class="btn r" data-n="stop">Bitir</button></div>';return}
+ const st=L.steps[nav.step],nx=L.steps[nav.step+1],dEnd=st&&st.end&&pos?hav(pos,st.end):0,rm=navRemain();
+ const ins=nav.arrived?'<div class="ins"><div class="ic">📦</div><div><div class="big">Vardınız</div><div class="txt">'+esc(cur.name||'(isim yok)')+'</div></div></div>'
+  :nx?'<div class="ins"><div class="ic">'+manIcon(nx.man)+'</div><div><div class="big">'+fmtD(dEnd)+'</div><div class="txt">'+esc(nx.text||'Devam edin')+'</div></div></div>'
+  :'<div class="ins"><div class="ic">📍</div><div><div class="big">'+fmtD(dEnd)+'</div><div class="txt">Durak: '+esc(cur.name||'(isim yok)')+'</div></div></div>';
+ e.className='navp'+(nav.arrived?' arr':'');
+ e.innerHTML=ins+'<div class="sub">Durak '+(S.route.indexOf(cur.id)+1)+' · '+esc(cur.name||'(isim yok)')+' · '+esc(addrOf(cur))+'<br>'+fmtD(rm.d)+' · ~'+fmtT(rm.t)+' · kalan '+left+' durak</div>'+
+ '<div class="row"><button class="btn g" data-n="delivered">✓ Teslim edildi</button><button class="btn x" data-n="failed">Edilemedi</button><button class="btn" data-n="skip">Sonraki</button><button class="btn k" data-n="voice">'+(S.voice?'🔊':'🔇')+'</button><button class="btn r" data-n="stop">Bitir</button></div>'}
+function navAdvance(){nav.leg++;nav.step=0;nav.spoken={};nav.arrived=null;
+ const c=navCur();if(!c||c.status!=='pending'||nav.leg>=nav.legs.length){navCompute();return}
+ say('Sıradaki durak: '+(c.name||'')+'. '+fmtD(nav.legs[nav.leg].dist));navRender()}
+function navSync(){if(!nav.on||nav.busy)return;const c=navCur();if(c&&c.status!=='pending')navAdvance()}
+function navTick(force){if(!nav.on||!pos||nav.busy)return;const L=nav.legs[nav.leg],cur=navCur();if(!L||!cur){navRender();return}
+ while(nav.step<L.steps.length-1&&L.steps[nav.step].end&&hav(pos,L.steps[nav.step].end)<25){const k0=nav.leg+'-'+nav.step;if(!nav.spoken[k0+'n']&&!nav.arrived){nav.spoken[k0+'n']=1;say('Şimdi '+L.steps[nav.step+1].text)}nav.step++}
+ const dStop=hav(pos,cur);
+ if(dStop<ARRIVE_M){if(!nav.arrived){nav.arrived=cur.id;say('Vardınız. '+(cur.name||''));if(navigator.vibrate)navigator.vibrate([200,100,200])}}
+ else if(nav.arrived&&dStop>ARRIVE_M*2)nav.arrived=null;
+ if(!nav.arrived){const st=L.steps[nav.step],nx=L.steps[nav.step+1];
+  if(st&&st.end){const d=hav(pos,st.end),k=nav.leg+'-'+nav.step;
+   if(force&&!nav.spoken[k+'s']){nav.spoken[k+'s']=1;if(d<200)nav.spoken[k+'f']=1;if(d<=60)nav.spoken[k+'n']=1;say(nx?fmtD(d)+' sonra '+nx.text:'Durağa '+fmtD(d))}
+   if(nx&&d<200&&d>80&&!nav.spoken[k+'f']){nav.spoken[k+'f']=1;say(fmtD(d)+' sonra '+nx.text)}
+   if(nx&&d<=60&&!nav.spoken[k+'n']){nav.spoken[k+'n']=1;say('Şimdi '+nx.text)}}
+  if(offRoute()>60){if(++nav.off>=2&&Date.now()-nav.lastRe>15000){say('Rota yeniden hesaplanıyor');navCompute();return}}else nav.off=0}
+ navRender()}
+async function navStart(){try{await initMap()}catch(e){return}
+ if(!pos)return toast('Konum alınamadı: konum iznini verin ve GPS\'i açın');
+ if(!S.route.length){await buildRoute();if(!S.route.length)return}
+ nav.on=true;nav.skip=new Set();S.follow=true;save();renderFollow();keepAwake();
+ $('.top').style.display='none';$('#sheet').style.display='none';map.setZoom(18);map.panTo(pos);
+ navRender();await navCompute()}
+function navStop(done){nav.on=false;nav.legs=[];if(navLine){navLine.setMap(null);navLine=null}try{speechSynthesis.cancel()}catch(e){}
+ $('.top').style.display='';$('#sheet').style.display='';navRender();if(done){say('Tüm duraklar tamamlandı');toast('Rotadaki tüm duraklar tamamlandı')}}
+$('#bNavStart').onclick=navStart;
+$('#navp').onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.n,c=navCur();
+ if(a==='stop'){if(ask('Navigasyon bitirilsin mi?'))navStop(false)}
+ else if(a==='voice'){S.voice=!S.voice;save();if(!S.voice)try{speechSynthesis.cancel()}catch(x){}navRender()}
+ else if(a==='skip'){if(c){nav.skip.add(c.id);toast('Bu durak sona bırakıldı');navCompute()}}
+ else if(c&&(a==='delivered'||a==='failed')){upd(c.id,{status:a})}};
 
 /* ---------- rota paylaşma ---------- */
 function segUrls(list){const out=[];const pend=list.filter(x=>!x.s);
