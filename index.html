@@ -31,6 +31,7 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
  <div class="help"><b>Söyleme sırası:</b> 1) kişinin adı soyadı, 2) sokak (numara veya ad), 3) apartman (bina) numarası.<br>
  Örn: <i>"Perihan Işlak 867 sokak 16"</i> veya <i>"Ali Veli Atatürk caddesi 12"</i>. Yazarken virgül kullanabilirsiniz: <i>Perihan Işlak, 867 Sokak, 16</i>.<br>
  İsteğe bağlı eklemeler: <i>daire 2</i>, <i>kat 3</i>, <i>Etiler mahallesi</i>. Komutlar: <i>"teslim edildi"</i>, <i>"edilemedi"</i>.</div>
+ <div id="editbar" class="banner" style="display:none"></div>
  <textarea id="txt" placeholder="Adresi yazın veya söyleyin"></textarea>
  <div class="row"><button class="btn p" id="bMic">🎤 Dinlemeyi başlat</button><button class="btn g" id="bAdd">➕ Ekle</button><button class="btn x" id="bClr">Temizle</button></div>
  <label style="font-size:13px;display:block;margin-top:8px"><input type="checkbox" id="auto" checked> Söyleyince otomatik ekle</label>
@@ -176,8 +177,19 @@ function addEntry(text){
  const it={...p,id:Date.now()+''+Math.random().toString(36).slice(2,6),key,area:S.area,geo:'pending',status:'pending',inRoute:!hasRoute,isNew:hasRoute};
  S.items.push(it);save();renderAll();geoItem(it);
  toast('Eklendi: '+(p.name||v.slice(0,30))+(S.area||p.mahalle?'':' (çalışma bölgesi boş, konum yanlış olabilir)'))}
-$('#bAdd').onclick=()=>{addEntry($('#txt').value);$('#txt').value=''};
-$('#bClr').onclick=()=>{$('#txt').value=''};
+let editId=null;
+function endEdit(){editId=null;$('#bAdd').textContent='➕ Ekle';$('#editbar').style.display='none'}
+function startEdit(id){const it=find(id);if(!it)return;editId=id;$('#txt').value=it.raw||addrOf(it);
+ $('#bAdd').textContent='💾 Kaydet';const b=$('#editbar');b.style.display='block';b.textContent='Düzenleniyor: '+(it.name||it.street||'adres')+' — düzeltip Kaydet\'e basın (iptal için Temizle).';
+ document.querySelector('nav button[data-t="add"]').click();$('#txt').focus()}
+function saveEdit(){const v=$('#txt').value.trim();if(v.length<4)return toast('Adresi yazın');const it=find(editId);if(!it){endEdit();return}
+ const oldQ=queryOf(it),p=parseEntry(v);
+ Object.assign(it,{name:p.name,street:p.street,no:p.no,daire:p.daire,kat:p.kat,mahalle:p.mahalle,raw:v,key:'M|'+norm(v)});
+ const changed=queryOf(it)!==oldQ;const id=it.id;
+ if(changed){Object.assign(it,{geo:'pending',lat:null,lng:null,geoErr:'',found:''});if(S.route.includes(id))S.dirty=true}
+ save();endEdit();$('#txt').value='';renderAll();if(changed)geoItem(it);toast(changed?'Kaydedildi, yeni konum aranıyor':'Kaydedildi')}
+$('#bAdd').onclick=()=>{if(editId)return saveEdit();addEntry($('#txt').value);$('#txt').value=''};
+$('#bClr').onclick=()=>{$('#txt').value='';endEdit()};
 $('#area').value=S.area||'';$('#area').onchange=()=>{S.area=$('#area').value.trim();save()};
 $('#auto').checked=S.auto!==false;$('#auto').onchange=()=>{S.auto=$('#auto').checked;save()};
 
@@ -188,7 +200,7 @@ function markNext(st){const n=nextStop();if(!n)return toast('Sıradaki durak yok
 function handleSpeech(s){const n=norm(s);
  if(/^(TESLIM EDILDI|TESLIM ETTIM|TAMAM)$/.test(n))return markNext('delivered');
  if(/^(EDILEMEDI|TESLIM EDILEMEDI)$/.test(n))return markNext('failed');
- if($('#auto').checked)addEntry(s);else $('#txt').value=(($('#txt').value+' ')+s).trim()}
+ if($('#auto').checked&&!editId)addEntry(s);else $('#txt').value=(($('#txt').value+' ')+s).trim()}
 function startRec(SR){rec=new SR();rec.lang='tr-TR';rec.interimResults=false;rec.maxAlternatives=1;
  rec.onresult=e=>{handleSpeech(e.results[e.results.length-1][0].transcript)};
  rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){listening=false;toast('Mikrofon izni verin')}};
@@ -232,10 +244,11 @@ function renderSheet(){const it=find(sel)||nextStop();
  <div class="row"><button class="btn g" data-a="delivered" data-id="${it.id}">Teslim edildi</button>
  <button class="btn x" data-a="failed" data-id="${it.id}">Edilemedi</button>
  <button class="btn" data-a="pending" data-id="${it.id}">Bekliyor</button>
- <button class="btn k" data-a="pin" data-id="${it.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
+ <button class="btn p" data-a="edit" data-id="${it.id}">Düzenle</button><button class="btn k" data-a="pin" data-id="${it.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
  $('#sheet').innerHTML=h}
 $('#sheet').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
-function act(id,a){if(a==='pin'){pinTarget=id;toast('Haritada bu adresin doğru yerine dokunun');document.querySelector('nav button[data-t="map"]').click();return}
+function act(id,a){if(a==='edit'){startEdit(id);return}
+ if(a==='pin'){pinTarget=id;toast('Haritada bu adresin doğru yerine dokunun');document.querySelector('nav button[data-t="map"]').click();return}
  if(a==='del'){if(!ask('Bu adres silinsin mi?'))return;S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);sel=null;save();renderAll()}
  else upd(id,{status:a})}
 $('#bStart').onclick=()=>{pickStart=true;toast('Haritada başlangıç noktasına dokunun')};
@@ -305,11 +318,11 @@ function renderList(){
  <div class="n">${o?o+'. ':''}${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}${i.isNew?' • yeni':''}</div></div>
  <div class="bt">${o?`<button class="btn x" data-a="up" data-id="${i.id}">▲</button><button class="btn x" data-a="down" data-id="${i.id}">▼</button><button class="btn x" data-a="to" data-id="${i.id}">Taşı</button>`:''}
  <button class="btn ${i.inRoute?'x':''}" data-a="route" data-id="${i.id}">${i.inRoute?'Rotadan çıkar':'Rotaya ekle'}</button>
- <button class="btn g" data-a="delivered" data-id="${i.id}">Teslim</button><button class="btn k" data-a="pin" data-id="${i.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${i.id}">Sil</button></div></div>`}).join('')}
+ <button class="btn p" data-a="edit" data-id="${i.id}">Düzenle</button><button class="btn g" data-a="delivered" data-id="${i.id}">Teslim</button><button class="btn k" data-a="pin" data-id="${i.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${i.id}">Sil</button></div></div>`}).join('')}
 $('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id,a=b.dataset.a;
  if(a==='up')move(id,-1);else if(a==='down')move(id,1);else if(a==='to')moveTo(id);else if(a==='route')toggleRoute(id);else act(id,a)};
-function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col"><div class="n">${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}</div></div><div class="bt"><button class="btn r" data-id="${i.id}">Geri al</button></div></div>`).join('')}
-$('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
+function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col"><div class="n">${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}</div></div><div class="bt"><button class="btn p" data-e="1" data-id="${i.id}">Düzenle</button><button class="btn r" data-id="${i.id}">Geri al</button></div></div>`).join('')}
+$('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;if(b.dataset.e){startEdit(id);return}S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
 $('#key').value=S.key||'';
 $('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;gDenied=false;toast('Kaydedildi');ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{})};
 $('#bTest').onclick=async()=>{if(!S.key)return alert('Önce anahtarı yazıp Kaydet\'e basın');try{const j=await gcall('Atatürk Bulvarı Kızılay Ankara');alert('Geocoding: '+j.status+(j.error_message?'\n'+j.error_message:'')+(j.status==='OK'?'\nÇalışıyor.':''))}catch(e){alert('Google erişilemedi: '+e)}};
