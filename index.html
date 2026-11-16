@@ -237,6 +237,16 @@ function act(id,a){if(a==='del'){S.items=S.items.filter(i=>i.id!==id);S.route=S.
 $('#bStart').onclick=()=>{pickStart=true;toast('Haritada başlangıç noktasına dokunun')};
 $('#bMe').onclick=()=>{S.start=null;save();renderMap()};
 $('#bMode').onclick=()=>{S.mode=S.mode==='auto'?'manual':'auto';save();renderAll();toast(S.mode==='auto'?'Otomatik: 30 m yaklaşıp 15 sn kalınca teslim sayılır':'Manuel işaretleme')};
+async function legPath(o,d,mid){
+ try{const {Route}=await google.maps.importLibrary('routes');
+  const r=await Route.computeRoutes({origin:{lat:o.lat,lng:o.lng},destination:{lat:d.lat,lng:d.lng},
+   intermediates:mid.map(p=>({lat:p.lat,lng:p.lng})),travelMode:'DRIVING',fields:['path']});
+  if(r.routes&&r.routes[0]&&r.routes[0].path)return r.routes[0].path.map(q=>({lat:typeof q.lat==='function'?q.lat():q.lat,lng:typeof q.lng==='function'?q.lng():q.lng}));
+ }catch(e){}
+ try{if(google.maps.DirectionsService){const r=await new Promise(res=>new google.maps.DirectionsService().route({origin:o,destination:d,
+   waypoints:mid.map(p=>({location:{lat:p.lat,lng:p.lng},stopover:true})),travelMode:'DRIVING'},(rs,st)=>res({rs,st})));
+  if(r.st==='OK')return r.rs.routes[0].overview_path.map(q=>({lat:q.lat(),lng:q.lng()}))}}catch(e){}
+ return null}
 $('#bRoute').onclick=async()=>{try{await ensureMaps()}catch(e){return}
  const s=S.start||pos;if(!s)return toast('Başlangıç seçin veya konum iznini verin');
  const pts=S.items.filter(i=>i.inRoute&&i.status==='pending'&&i.lat!=null);if(!pts.length)return toast('Rotaya uygun kargo yok');
@@ -244,11 +254,10 @@ $('#bRoute').onclick=async()=>{try{await ensureMaps()}catch(e){return}
  S.route=optimize(s,pts);save();polys.forEach(p=>p.setMap(null));polys=[];renderMap();
  const arr=[s,...S.route.map(find)];let fail=false;
  for(let a=0;a<arr.length-1;a+=23){const b=Math.min(a+23,arr.length-1);
-  const r=await new Promise(res=>new google.maps.DirectionsService().route({origin:arr[a],destination:arr[b],
-   waypoints:arr.slice(a+1,b).map(p=>({location:{lat:p.lat,lng:p.lng},stopover:true})),travelMode:'DRIVING'},(rs,st)=>res({rs,st})));
-  if(r.st==='OK')polys.push(new google.maps.Polyline({map,path:r.rs.routes[0].overview_path,strokeColor:'#7c3aed',strokeWeight:4}));else fail=true;
+  const path=await legPath(arr[a],arr[b],arr.slice(a+1,b));
+  if(path)polys.push(new google.maps.Polyline({map,path,strokeColor:'#7c3aed',strokeWeight:4}));else fail=true;
   await sleep(350)}
- $('#bRoute').textContent='Rota oluştur';toast(fail?'Sıra hesaplandı, bazı yol çizgileri çizilemedi (Directions API?)':'Rota hazır: '+S.route.length+' durak')};
+ $('#bRoute').textContent='Rota oluştur';toast(fail?'Sıra hesaplandı, yol çizgisi çizilemedi (Routes API etkin ve anahtara izinli mi?)':'Rota hazır: '+S.route.length+' durak')};
 
 /* ---------- liste / ayarlar ---------- */
 function renderList(){const arr=S.route.length?[...S.items].sort((a,b)=>(S.route.indexOf(a.id)+1||9999)-(S.route.indexOf(b.id)+1||9999)):S.items;
