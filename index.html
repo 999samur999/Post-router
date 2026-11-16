@@ -22,11 +22,14 @@ video{width:100%;height:100%;object-fit:cover;background:#000;position:absolute;
 .set{padding:10px;background:#f3f4f6;font-size:13px}.set input{width:100%;padding:8px;margin:4px 0}
 #startcam{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:16px 22px;font-size:16px}
 #toast{position:fixed;left:10px;right:10px;bottom:80px;background:#111827;color:#fff;padding:10px;border-radius:8px;display:none;z-index:9;font-size:13px}
+#bGal{position:absolute;left:10px;right:10px;bottom:12px;padding:14px;font-size:15px;background:#7c3aed}
 </style></head><body><div id="app">
 <section id="p-camera" class="pane on">
  <video id="vid" playsinline muted autoplay></video><div id="flash"></div>
  <div class="hud"><b id="cnt">0/300 okundu</b><div id="msg">Başlamak için kamerayı açın</div><div id="ocr"></div></div>
  <button class="btn" id="startcam">📷 Kamerayı başlat</button>
+ <button class="btn" id="bGal">🖼️ Galeriden fotoğraf yükle</button>
+ <input type="file" id="file" accept="image/*" multiple hidden>
 </section>
 <section id="p-map" class="pane">
  <div id="map"></div>
@@ -38,6 +41,7 @@ video{width:100%;height:100%;object-fit:cover;background:#000;position:absolute;
  <div class="set"><b>Google API anahtarı</b> (Maps JavaScript + Geocoding + Directions)
   <input id="key" placeholder="AIza..."><div class="row" style="margin-top:4px">
   <button class="btn" id="bKey">Kaydet</button><button class="btn k" id="bRetry">Bulunamayanları tekrar dene</button>
+  <button class="btn p" id="bGal2">🖼️ Galeriden yükle</button>
   <button class="btn r" id="bClear">Tüm verileri sil</button></div></div>
  <div id="list"></div>
 </section>
@@ -162,26 +166,37 @@ function addParsed(p){
 
 /* ---------- kamera + OCR ---------- */
 let worker=null,camOn=false,busy=false;const video=$('#vid');
+async function ensureWorker(){if(!worker){$('#ocr').textContent='OCR motoru yükleniyor (ilk seferde ~10 sn)…';toast('OCR motoru yükleniyor, ilk seferde ~10 sn sürer');worker=await Tesseract.createWorker('eng');$('#ocr').textContent='Hazır'}return worker}
 async function startCam(){
  try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
   video.srcObject=st;await video.play();$('#startcam').style.display='none';
   try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}
  }catch(e){toast('Kamera açılamadı: izin verin ve sayfayı HTTPS üzerinden açın');return}
- $('#ocr').textContent='OCR motoru yükleniyor (ilk seferde ~10 sn)…';
- worker=await Tesseract.createWorker('eng');$('#ocr').textContent='Hazır – stikeri gösterin';
- camOn=true;loop()}
-function frame(deg){const w=video.videoWidth,h=video.videoHeight,s=Math.min(1,1400/Math.max(w,h)),sw=Math.round(w*s),sh=Math.round(h*s);
+ await ensureWorker();$('#ocr').textContent='Hazır – stikeri gösterin';camOn=true;loop()}
+function frame(src,w,h,deg,max){const s=Math.min(1,max/Math.max(w,h)),sw=Math.round(w*s),sh=Math.round(h*s);
  const c=document.createElement('canvas'),sp=deg===90||deg===270;c.width=sp?sh:sw;c.height=sp?sw:sh;
- const x=c.getContext('2d');x.filter='grayscale(1) contrast(1.3)';x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(video,-sw/2,-sh/2,sw,sh);return c}
-async function scanOnce(){if(!video.videoWidth)return;
- for(const deg of [0,90,270,180]){ if(tab!=='camera')return;
-  const {data}=await worker.recognize(frame(deg));const p=parseText(data.text||'');
-  if(p&&p.ok){addParsed(p);return}
-  if(deg===0&&(data.text||'').replace(/\s/g,'').length<25)return; // metin yok → döndürme deneme
- }}
+ const x=c.getContext('2d');x.filter='grayscale(1) contrast(1.3)';x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(src,-sw/2,-sh/2,sw,sh);return c}
+async function readSrc(src,w,h,max,full){
+ for(const deg of [0,90,270,180]){
+  const {data}=await worker.recognize(frame(src,w,h,deg,max));const p=parseText(data.text||'');
+  if(p&&p.ok)return p;
+  if(!full&&deg===0&&(data.text||'').replace(/\s/g,'').length<25)return null;
+  if(!full&&tab!=='camera')return null}
+ return null}
+async function scanOnce(){if(!video.videoWidth)return;const p=await readSrc(video,video.videoWidth,video.videoHeight,1400,false);if(p)addParsed(p)}
 async function loop(){while(camOn){if(tab==='camera'&&!busy){busy=true;$('#ocr').textContent='Okunuyor…';
  try{await scanOnce()}catch(e){}busy=false;$('#ocr').textContent='Hazır – sıradaki stikeri gösterin'}await sleep(300)}}
+async function fromFiles(files){files=[...files];if(!files.length)return;busy=true;let ok=0,fail=[];
+ try{await ensureWorker();
+  for(let k=0;k<files.length;k++){const m='Galeri '+(k+1)+'/'+files.length+' okunuyor…';$('#msg').textContent=m;toast(m);
+   try{let bmp;try{bmp=await createImageBitmap(files[k],{imageOrientation:'from-image'})}catch(e){bmp=await createImageBitmap(files[k])}
+    const p=await readSrc(bmp,bmp.width,bmp.height,2000,true);if(bmp.close)bmp.close();
+    if(p){addParsed(p);ok++}else fail.push(k+1)}catch(e){fail.push(k+1)}}
+ }catch(e){}
+ busy=false;const r='Galeri bitti: '+ok+' okundu'+(fail.length?', okunamayan fotoğraf sıraları: '+fail.join(', '):'');$('#msg').textContent=r;toast(r)}
 $('#startcam').onclick=startCam;
+['#bGal','#bGal2'].forEach(s=>$(s).onclick=()=>$('#file').click());
+$('#file').onchange=e=>{const f=e.target.files;fromFiles(f).finally(()=>{e.target.value=''})};
 
 /* ---------- konum + otomatik teslim ---------- */
 let dwell={id:null,t:0};
