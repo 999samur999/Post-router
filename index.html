@@ -50,7 +50,7 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 <section id="p-list" class="pane">
  <div class="set"><b>Google API anahtarı</b> (Maps JavaScript + Geocoding + Routes)
   <input id="key" placeholder="AIza..."><div class="row" style="margin-top:4px">
-  <button class="btn" id="bKey">Kaydet</button><button class="btn k" id="bRetry">Bulunamayanları tekrar dene</button>
+  <button class="btn" id="bKey">Kaydet</button><button class="btn p" id="bTest">Google bağlantısını sına</button><button class="btn k" id="bRetry">Bulunamayanları tekrar dene</button>
   <button class="btn r" id="bClear">Tüm verileri sil</button></div></div>
  <div id="list"></div>
 </section>
@@ -136,19 +136,34 @@ function ensureMaps(){if(window.google&&google.maps&&google.maps.Map)return Prom
   s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(S.key)+'&language=tr';
   s.onload=res;s.onerror=()=>{mapsP=null;toast('Google Haritalar yüklenemedi (internet?)');rej()};document.head.append(s)});
  return mapsP}
-let gq=Promise.resolve();
-function geocodeText(q){return gq=gq.then(async()=>{await sleep(120);
- for(let t=0;t<3;t++){const req={address:q,componentRestrictions:{country:'TR'}};
-  if(pos){const d=0.15;req.bounds={north:pos.lat+d,south:pos.lat-d,east:pos.lng+d,west:pos.lng-d}}
-  const r=await new Promise(res=>new google.maps.Geocoder().geocode(req,(rs,st)=>res({rs,st})));
-  if(r.st==='OVER_QUERY_LIMIT'){await sleep(1200);continue}
-  if(r.st!=='OK'||!r.rs.length){if(r.st==='REQUEST_DENIED')toast('Google adres servisi reddetti: faturalandırma, Geocoding API ve anahtar izinlerini kontrol edin');return {geo:'none',geoErr:r.st}}
-  const g=r.rs[0],l=g.geometry.location,exact=!g.partial_match&&['ROOFTOP','RANGE_INTERPOLATED'].includes(g.geometry.location_type);
-  return {lat:l.lat(),lng:l.lng(),geo:exact?'ok':'approx',geoErr:''}}
- return {geo:'pending'}}).catch(()=>({geo:'pending'}))}
+let gq=Promise.resolve(),gDenied=false;
 const queryOf=i=>i.street?[i.street,i.no?'No:'+i.no:'',i.mahalle?i.mahalle+' Mah':'',i.area||''].filter(Boolean).join(' '):[i.raw,i.area||''].join(' ');
-async function geoItem(it){try{await ensureMaps()}catch(e){return}
- const g=await geocodeText(queryOf(it));upd(it.id,{geo:g.geo,lat:g.lat,lng:g.lng,geoErr:g.geoErr})}
+const fixStreet=s=>s?s.replace(/^(\d+)\s*(SOKAK|SOKAGI|SK|SOK)\b/i,'$1. Sokak'):s;
+function gcall(q){const o=pos||S.start;let u='https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(q)+'&components=country:TR&language=tr&region=tr&key='+encodeURIComponent(S.key);
+ if(o){const d=0.2;u+='&bounds='+(o.lat-d)+','+(o.lng-d)+'|'+(o.lat+d)+','+(o.lng+d)}
+ return fetch(u).then(r=>r.json())}
+function geocodeText(it){return gq=gq.then(async()=>{
+ if(!S.key)return {geo:'pending',geoErr:'API anahtarı yok'};
+ if(gDenied)return {geo:'pending',geoErr:gDenied};
+ const st=fixStreet(it.street),mh=it.mahalle?it.mahalle+' Mahallesi':'',ar=it.area||'';
+ const tries=it.street?[[st,it.no?'No:'+it.no:'',mh,ar],[st,it.no||'',mh,ar],[st,mh,ar]].map(x=>x.filter(Boolean).join(' ')):[[it.raw,ar].join(' ')];
+ let best=null;
+ for(let k=0;k<tries.length;k++){await sleep(150);
+  let j;for(let n=0;n<3;n++){try{j=await gcall(tries[k])}catch(e){return {geo:'pending',geoErr:'İnternet/Google erişimi yok'}}
+   if(j.status==='OVER_QUERY_LIMIT'){await sleep(1500);continue}break}
+  if(j.status==='REQUEST_DENIED'||j.status==='INVALID_REQUEST'){gDenied='Google reddetti: '+(j.error_message||j.status);toast(gDenied);return {geo:'none',geoErr:gDenied}}
+  if(j.status!=='OK'||!j.results.length)continue;
+  const g=j.results[0],l=g.geometry.location,ty=g.types||[];
+  const street=ty.some(x=>['street_address','premise','subpremise'].includes(x))||['ROOFTOP','RANGE_INTERPOLATED'].includes(g.geometry.location_type);
+  const exact=k===0&&it.no&&!g.partial_match&&street;
+  const r={lat:l.lat,lng:l.lng,geo:exact?'ok':'approx',geoErr:'',found:g.formatted_address};
+  if(exact)return r;
+  if(!best||(k<2&&best.k>=2)){best={...r,k}}
+ }
+ if(best){delete best.k;return best}
+ return {geo:'none',geoErr:'Google adresi bulamadı'}}).catch(()=>({geo:'pending'}))}
+async function geoItem(it){const g=await geocodeText(it);
+ if(g.geo==='pending'&&!g.geoErr)return;upd(it.id,{geo:g.geo,lat:g.lat,lng:g.lng,geoErr:g.geoErr,found:g.found||''})}
 function upd(id,p){const i=find(id);if(!i)return;Object.assign(i,p);save();renderAll()}
 
 /* ---------- ekleme (yazı / ses) ---------- */
@@ -167,7 +182,7 @@ $('#area').value=S.area||'';$('#area').onchange=()=>{S.area=$('#area').value.tri
 $('#auto').checked=S.auto!==false;$('#auto').onchange=()=>{S.auto=$('#auto').checked;save()};
 
 /* ---------- sesli giriş ---------- */
-let rec=null,listening=false;
+let rec=null,listening=false,pinTarget=null;
 function setMic(){$('#bMic').textContent=listening?'⏹ Dinleniyor… (durdur)':'🎤 Dinlemeyi başlat';$('#bMic').className='btn '+(listening?'r':'p')}
 function markNext(st){const n=nextStop();if(!n)return toast('Sıradaki durak yok (önce rota oluşturun)');upd(n.id,{status:st});toast((st==='delivered'?'Teslim edildi: ':'Edilemedi: ')+(n.name||''))}
 function handleSpeech(s){const n=norm(s);
@@ -196,7 +211,7 @@ if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{pos={lat:p.coor
 /* ---------- harita ---------- */
 async function initMap(){await ensureMaps();
  if(!map){map=new google.maps.Map($('#map'),{center:pos||{lat:36.8969,lng:30.7133},zoom:13,streetViewControl:false,mapTypeControl:false});
-  map.addListener('click',e=>{if(pickStart){S.start={lat:e.latLng.lat(),lng:e.latLng.lng()};pickStart=false;save();renderMap()}else{sel=null;renderSheet()}});
+  map.addListener('click',e=>{if(pinTarget){upd(pinTarget,{lat:e.latLng.lat(),lng:e.latLng.lng(),geo:'ok',geoErr:''});pinTarget=null;toast('Konum kaydedildi')}else if(pickStart){S.start={lat:e.latLng.lat(),lng:e.latLng.lng()};pickStart=false;save();renderMap()}else{sel=null;renderSheet()}});
   meMarker=new google.maps.Marker({map,position:pos||undefined,icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:'#f97316',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},zIndex:5})}
  google.maps.event.trigger(map,'resize');renderMap()}
 function renderMap(){if(!map)return;markers.forEach(m=>m.setMap(null));markers=[];
@@ -217,10 +232,11 @@ function renderSheet(){const it=find(sel)||nextStop();
  <div class="row"><button class="btn g" data-a="delivered" data-id="${it.id}">Teslim edildi</button>
  <button class="btn x" data-a="failed" data-id="${it.id}">Edilemedi</button>
  <button class="btn" data-a="pending" data-id="${it.id}">Bekliyor</button>
- <button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
+ <button class="btn k" data-a="pin" data-id="${it.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
  $('#sheet').innerHTML=h}
 $('#sheet').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
-function act(id,a){if(a==='del'){if(!ask('Bu adres silinsin mi?'))return;S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);sel=null;save();renderAll()}
+function act(id,a){if(a==='pin'){pinTarget=id;toast('Haritada bu adresin doğru yerine dokunun');document.querySelector('nav button[data-t="map"]').click();return}
+ if(a==='del'){if(!ask('Bu adres silinsin mi?'))return;S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);sel=null;save();renderAll()}
  else upd(id,{status:a})}
 $('#bStart').onclick=()=>{pickStart=true;toast('Haritada başlangıç noktasına dokunun')};
 $('#bMe').onclick=()=>{S.start=null;save();renderMap()};
@@ -282,21 +298,22 @@ function addNewToRoute(){const ns=S.items.filter(i=>i.isNew&&i.lat!=null&&i.stat
 function renderBanner(){const n=S.items.filter(i=>i.isNew&&i.status==='pending').length;
  $('#banner').innerHTML=n&&S.route.length?`<div class="banner">Rota oluşturulduktan sonra ${n} yeni adres eklendi, rotaya dahil değil.<div class="row"><button class="btn g" id="bNew">Rotaya ekle (onaylı)</button></div></div>`:'';
  const b=$('#bNew');if(b)b.onclick=addNewToRoute}
-function geoNote(i){return ({pending:'Konum aranıyor…',ok:'Konum tam',approx:'⚠ Yaklaşık konum (haritada turuncu halka)',none:'⚠ Konum bulunamadı'+(i.geoErr?' ['+i.geoErr+']':'')})[i.geo]||''}
+function geoNote(i){const f=i.found?' Google: '+i.found:'';return ({pending:'Konum aranıyor…'+(i.geoErr?' ['+i.geoErr+']':''),ok:'Konum tam.'+f,approx:'⚠ Yaklaşık konum (turuncu halka) — doğruysa bırakın, değilse "Konumu seç".'+f,none:'⚠ Konum bulunamadı'+(i.geoErr?' ['+i.geoErr+']':'')})[i.geo]||''}
 function renderList(){
  const arr=S.route.length?[...S.items].sort((a,b)=>(S.route.indexOf(a.id)+1||9999)-(S.route.indexOf(b.id)+1||9999)):S.items;
  $('#list').innerHTML=arr.map(i=>{const o=orderOf(i.id);return `<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col">
  <div class="n">${o?o+'. ':''}${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}${i.isNew?' • yeni':''}</div></div>
  <div class="bt">${o?`<button class="btn x" data-a="up" data-id="${i.id}">▲</button><button class="btn x" data-a="down" data-id="${i.id}">▼</button><button class="btn x" data-a="to" data-id="${i.id}">Taşı</button>`:''}
  <button class="btn ${i.inRoute?'x':''}" data-a="route" data-id="${i.id}">${i.inRoute?'Rotadan çıkar':'Rotaya ekle'}</button>
- <button class="btn g" data-a="delivered" data-id="${i.id}">Teslim</button><button class="btn r" data-a="del" data-id="${i.id}">Sil</button></div></div>`}).join('')}
+ <button class="btn g" data-a="delivered" data-id="${i.id}">Teslim</button><button class="btn k" data-a="pin" data-id="${i.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${i.id}">Sil</button></div></div>`}).join('')}
 $('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id,a=b.dataset.a;
  if(a==='up')move(id,-1);else if(a==='down')move(id,1);else if(a==='to')moveTo(id);else if(a==='route')toggleRoute(id);else act(id,a)};
 function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col"><div class="n">${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}</div></div><div class="bt"><button class="btn r" data-id="${i.id}">Geri al</button></div></div>`).join('')}
 $('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
 $('#key').value=S.key||'';
-$('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;toast('Kaydedildi');ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{})};
-$('#bRetry').onclick=()=>{S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
+$('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;gDenied=false;toast('Kaydedildi');ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{})};
+$('#bTest').onclick=async()=>{if(!S.key)return alert('Önce anahtarı yazıp Kaydet\'e basın');try{const j=await gcall('Atatürk Bulvarı Kızılay Ankara');alert('Geocoding: '+j.status+(j.error_message?'\n'+j.error_message:'')+(j.status==='OK'?'\nÇalışıyor.':''))}catch(e){alert('Google erişilemedi: '+e)}};
+$('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem);return;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
 $('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false};sel=null;clearLines();save();renderAll()}};
 function renderAll(){$('#cnt').textContent='Eklenen: '+S.items.length+'/'+MAX;$('#bMode').textContent=S.mode==='auto'?'Otomatik':'Manuel';
  $('#bMode').className='btn '+(S.mode==='auto'?'g':'x');renderList();renderRecent();renderBanner();renderMap();renderSheet()}
