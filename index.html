@@ -1,74 +1,204 @@
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><title>Kargo Rota</title>
+<meta name="theme-color" content="#EEF1F4"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap" rel="stylesheet"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><title>Kargo Rota</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,sans-serif;background:#fff;overscroll-behavior:none}
+:root{--bg:#EEF1F4;--surface:#fff;--ink:#1C2430;--ink2:#2B3646;--muted:#5B6675;--line:#DCE1E7;--green:#0E8A5F;--green-weak:#E3F3EC;--hivis:#F2B705;--danger:#C2412D;--danger-weak:#FBEAE6;--grey:#9AA4B1;
+ --f:'Barlow',system-ui,sans-serif;--fc:'Barlow Semi Condensed','Barlow',system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.4 var(--f);overscroll-behavior:none}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--hivis);outline-offset:2px}
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
 .pane{display:none;flex:1;position:relative;min-height:0;overflow:auto}.pane.on{display:flex;flex-direction:column}
-nav{display:flex;background:#111827;padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weight:600;font-size:14px}nav button.on{background:#1f2937}
-.btn{border:0;border-radius:8px;padding:10px 12px;color:#fff;background:#2563eb;font-weight:600;font-size:13px}
-.btn.g{background:#16a34a}.btn.x{background:#6b7280}.btn.r{background:#dc2626}.btn.p{background:#7c3aed}.btn.k{background:#111}.btn.big{width:100%;padding:14px;font-size:16px}
-.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.n{font-weight:700;font-size:15px}.a{font-size:12px;color:#374151;margin:2px 0}
-#p-add{padding:12px}#p-add input[type=text],#p-add textarea,.set input{width:100%;padding:9px;font-size:15px;border:1px solid #9ca3af;border-radius:8px;margin:4px 0}
-#txt{height:90px}.lab{font-size:13px;font-weight:700;margin-top:10px}
-.help{background:#f3f4f6;border-radius:8px;padding:8px;font-size:12px;margin:6px 0;color:#111}
-.banner{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px;font-size:13px;margin-top:8px;color:#111}
-#map{flex:1;min-height:300px}.top{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:6px}
-.navp{position:absolute;top:0;left:0;right:0;background:#0f5132;color:#fff;padding:10px 12px;display:none;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.35)}
-.navp .ins{display:flex;gap:10px;align-items:center}.navp .ic{font-size:34px;line-height:1}.navp .big{font-size:20px;font-weight:800}.navp .txt{font-size:15px;font-weight:600}
-.navp .sub{font-size:13px;margin-top:6px;background:rgba(0,0,0,.25);border-radius:8px;padding:6px 8px}.navp .row .btn{padding:9px 10px}
-.arr{background:#fef3c7!important;color:#111!important}
-.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;padding:12px;box-shadow:0 -2px 10px rgba(0,0,0,.25);max-height:45%;overflow:auto}
-#list{flex:1}.card{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #e5e7eb}
-.dot{width:14px;height:14px;border-radius:50%;flex:none}.card .col{flex:1;min-width:0}.card .bt{display:flex;flex-wrap:wrap;gap:4px;max-width:150px}
-.card .bt .btn{padding:7px 9px;font-size:12px}
-.set{padding:10px;background:#f3f4f6;font-size:13px}
+.ic{width:22px;height:22px;flex:none}
+/* başlık */
+.hd{display:flex;align-items:baseline;justify-content:space-between;padding:18px 16px 6px}
+.hd h1{margin:0;font:700 26px/1.1 var(--fc);letter-spacing:.2px}
+.count{font:600 15px var(--fc);color:var(--muted)}
+h2.sec{font:700 17px var(--fc);margin:22px 16px 8px}
+/* düğmeler */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 16px;border-radius:12px;border:1px solid transparent;background:var(--ink);color:#fff;font-weight:600;font-size:15px;cursor:pointer}
+.btn:active{transform:translateY(1px)}
+.btn.primary,.btn.k{background:var(--ink);color:#fff}
+.btn.g{background:var(--green);color:#fff}
+.btn.ghost,.btn.x,.btn.p{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.btn.danger,.btn.r{background:var(--danger-weak);color:var(--danger)}
+.btn.block,.btn.big{display:flex;width:100%}
+.btn.grow{flex:1}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+/* ekle ekranı */
+#p-add{padding-bottom:24px}
+.entry{position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 16px 12px}
+.area{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px;margin:0 16px 4px;color:var(--muted)}
+.area input{flex:1;border:0;outline:0;background:none;padding:12px 0;font-size:15px;color:var(--ink)}
+#txt{display:block;width:100%;height:150px;resize:none;border:2px solid var(--ink);border-radius:16px;background:var(--surface);padding:14px 16px;font:500 19px/1.45 var(--f);color:var(--ink);box-shadow:0 1px 0 var(--line)}
+#txt::placeholder{color:var(--grey)}
+#txt:focus{outline:none;border-color:var(--green)}
+.entry-actions{display:flex;gap:10px;align-items:center;margin-top:12px}
+.mic{width:58px;height:58px;border-radius:50%;border:0;background:var(--hivis);color:var(--ink);display:grid;place-items:center;flex:none;cursor:pointer;box-shadow:0 2px 0 #c99600}
+.mic .ic{width:26px;height:26px}
+.mic.on{background:var(--ink);color:var(--hivis);box-shadow:0 0 0 0 rgba(242,183,5,.6);animation:ring 1.4s infinite}
+@keyframes ring{to{box-shadow:0 0 0 14px rgba(242,183,5,0)}}
+@media (prefers-reduced-motion:reduce){.mic.on{animation:none;box-shadow:0 0 0 4px var(--hivis)}}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0 0;font-size:15px}
+.switch-row small{display:block;color:var(--muted);font-size:13px}
+.sw{appearance:none;-webkit-appearance:none;width:48px;height:28px;border-radius:14px;background:var(--line);position:relative;flex:none;cursor:pointer;margin:0;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(28,36,48,.3);transition:transform .15s}
+.sw:checked{background:var(--green)}.sw:checked::after{transform:translateX(20px)}
+.hint{margin:4px 16px 0;color:var(--muted);font-size:13.5px}
+.editbar{margin:0 16px 8px;padding:10px 12px;border-radius:12px;background:#FFF6D6;border:1px solid var(--hivis);font-size:14px}
+#banner{margin:0 16px}
+#bGo{margin:16px 16px 0;width:auto}
+.banner{background:#FFF6D6;border:1px solid var(--hivis);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:10px;color:var(--ink)}
+/* satırlar */
+.rows{margin:0 16px;background:var(--surface);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+.rows:empty{display:none}
+.rw{display:flex;align-items:center;gap:12px;padding:12px 10px 12px 12px;border-top:1px solid var(--line)}
+.rw:first-child{border-top:0}
+.dotc{width:12px;height:12px;border-radius:50%;background:var(--c);flex:none;margin:0 4px}
+.dist{font-size:13px;color:var(--muted);margin-top:4px}
+.no{min-width:32px;height:32px;padding:0 6px;border-radius:9px;display:grid;place-items:center;font:700 15px var(--fc);color:#fff;background:var(--c);flex:none}
+.rw .col{flex:1;min-width:0}
+.nm{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad{color:var(--muted);font-size:14px}
+.warn{color:#9A5B00;font-size:13px;margin-top:2px}
+.rw.done .nm{color:var(--muted);text-decoration:line-through}
+.ib{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none;cursor:pointer;color:var(--ink)}
+.ib.ok{background:var(--green-weak);border-color:transparent;color:var(--green)}
+.empty{margin:24px 16px;color:var(--muted);text-align:center}
+/* ayarlar */
+.group{margin:8px 16px 14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+.group h2{margin:0 0 6px;font:700 17px var(--fc)}
+.group .btn.block{margin-top:10px}
+.fld{display:block;font-size:14px;color:var(--muted)}
+.keyrow{display:flex;gap:8px;margin-top:6px}
+.keyrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:0 12px;height:46px;font-size:15px;background:var(--bg)}
+/* harita */
+#map{flex:1;min-height:300px}
+.top{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;z-index:3}
+.pill{height:46px;min-width:46px;padding:0 14px;border-radius:23px;border:0;background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:15px;box-shadow:0 2px 8px rgba(28,36,48,.18);cursor:pointer}
+.pill.icon{padding:0;justify-content:center}
+.pill.on{background:var(--green);color:#fff}
+.pill.go{background:var(--ink);color:#fff;flex:1;justify-content:center}
+#more{position:absolute;top:56px;right:0;background:var(--surface);border-radius:14px;box-shadow:0 6px 24px rgba(28,36,48,.22);overflow:hidden;min-width:250px}
+#more button{display:block;width:100%;text-align:left;padding:14px 16px;border:0;border-top:1px solid var(--line);background:none;font-size:15px;cursor:pointer}
+#more button:first-child{border-top:0}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:20px 20px 0 0;padding:10px 16px 14px;box-shadow:0 -4px 18px rgba(28,36,48,.16);max-height:45%;overflow:auto}
+.sheet::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 10px}
+.stats{display:flex;gap:16px;font:600 14px var(--fc);color:var(--muted)}
+.stats b{font-size:17px;color:var(--ink);margin-right:3px}
+.nextl{margin-top:10px;font-size:13px;color:var(--muted)}
+.nextn{font:700 20px/1.2 var(--fc)}
 .lbl{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
-#ov{position:fixed;inset:0;background:#fff;z-index:20;overflow:auto;display:none;padding:12px;padding-bottom:40px}
-#ov.on{display:block}#ov .card{cursor:pointer}.seg{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.done .n{text-decoration:line-through;color:#6b7280}
-#toast{position:fixed;left:10px;right:10px;bottom:80px;z-index:30;background:#111827;color:#fff;padding:10px;border-radius:8px;display:none;z-index:9;font-size:13px}
+/* navigasyon paneli */
+.navp{position:absolute;top:0;left:0;right:0;background:var(--ink);color:#fff;padding:14px 16px 12px;display:none;z-index:5;border-radius:0 0 20px 20px;box-shadow:0 4px 18px rgba(28,36,48,.35)}
+.navp .ins{display:flex;gap:14px;align-items:center}.navp .ic{font-size:40px;line-height:1;width:auto;height:auto}
+.navp .big{font:700 34px/1 var(--fc)}.navp .txt{font:600 18px/1.25 var(--fc);margin-top:2px}
+.navp .sub{font-size:14px;margin-top:10px;color:#C9D1DB}
+.navp .row .btn{min-height:42px;padding:0 12px}
+.navp .btn.x,.navp .btn.k{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.18)}
+.navp.arr{background:var(--hivis)!important;color:var(--ink)!important}.navp.arr .sub{color:var(--ink2)}
+.navp.arr .btn.x,.navp.arr .btn.k{background:rgba(28,36,48,.08);color:var(--ink);border-color:rgba(28,36,48,.2)}
+/* alt menü */
+nav{display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 10px;background:none;border:0;border-top:3px solid transparent;color:var(--muted);font:600 13px var(--f);cursor:pointer}
+nav button.on{color:var(--ink);border-top-color:var(--hivis)}
+/* işlem menüsü */
+#act{position:fixed;inset:0;background:rgba(28,36,48,.45);z-index:25;display:none;align-items:flex-end}
+#act.on{display:flex}
+#act .panel{width:100%;background:var(--surface);border-radius:20px 20px 0 0;padding:8px 0 calc(10px + env(safe-area-inset-bottom));max-height:85%;overflow:auto}
+#act .ah{padding:12px 18px 10px;border-bottom:1px solid var(--line)}
+#act .ah .nm{white-space:normal}
+#act button.ai{display:flex;align-items:center;gap:12px;width:100%;padding:14px 18px;border:0;background:none;font-size:16px;text-align:left;cursor:pointer}
+#act button.ai.danger{color:var(--danger)}
+#act .ar{display:flex;gap:8px;padding:8px 18px}
+#act .ar .btn{flex:1}
+/* paylaşım sayfası (eski sınıflar) */
+.n{font-weight:700;font-size:16px}.a{font-size:13.5px;color:var(--muted);margin:2px 0}.lab{font:700 15px var(--fc);margin-top:14px}
+.card{display:flex;gap:10px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}.card .col{flex:1;min-width:0}.card .bt{display:flex;flex-wrap:wrap;gap:6px;max-width:170px}
+.card .bt .btn{min-height:38px;padding:0 10px;font-size:13px}
+#ov{position:fixed;inset:0;background:var(--surface);z-index:20;overflow:auto;display:none;padding:16px 16px 40px}
+#ov.on{display:block}#ov .card{cursor:pointer}.seg{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.seg .btn{min-height:40px;text-decoration:none}
+.done .n{text-decoration:line-through;color:var(--muted)}
+#toast{position:fixed;left:16px;right:16px;bottom:88px;z-index:30;background:var(--ink);color:#fff;padding:12px 14px;border-radius:12px;display:none;font-size:14.5px;box-shadow:0 6px 20px rgba(28,36,48,.3)}
 </style></head><body><div id="app">
 
 <section id="p-add" class="pane on">
- <button class="btn big g" id="bInstall" style="display:none;margin-bottom:8px">📲 Uygulamayı telefona yükle</button>
- <div class="lab">Çalışma bölgesi (bir kez yazın)</div>
- <input type="text" id="area" placeholder="Örn: Etiler Mahallesi, Muratpaşa, Antalya">
- <div class="help"><b>Söyleme sırası:</b> 1) kişinin adı soyadı, 2) sokak (numara veya ad), 3) apartman (bina) numarası.<br>
- Örn: <i>"Perihan Işlak 867 sokak 16"</i> veya <i>"Ali Veli Atatürk caddesi 12"</i>. Yazarken virgül kullanabilirsiniz: <i>Perihan Işlak, 867 Sokak, 16</i>.<br>
- İsteğe bağlı eklemeler: <i>daire 2</i>, <i>kat 3</i>, <i>Etiler mahallesi</i>. Komutlar: <i>"teslim edildi"</i>, <i>"edilemedi"</i>.</div>
- <div id="editbar" class="banner" style="display:none"></div>
- <textarea id="txt" placeholder="Adresi yazın veya söyleyin"></textarea>
- <div class="row"><button class="btn p" id="bMic">🎤 Dinlemeyi başlat</button><button class="btn g" id="bAdd">➕ Ekle</button><button class="btn x" id="bClr">Temizle</button></div>
- <label style="font-size:13px;display:block;margin-top:8px"><input type="checkbox" id="auto" checked> Söyleyince otomatik ekle</label>
- <div class="lab" id="cnt">Eklenen: 0/300</div>
+ <header class="hd"><h1>Adres ekle</h1><span class="count" id="cnt">0 / 300</span></header>
+ <label class="area"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg><input type="text" id="area" placeholder="Çalışma bölgesi: mahalle, ilçe, il" aria-label="Çalışma bölgesi"></label>
+ <div class="entry">
+  <div id="editbar" class="editbar" style="display:none"></div>
+  <textarea id="txt" placeholder="Ad soyad, sokak, bina no&#10;Örn: Pınar Karakule 845 Sokak 45" aria-label="Adres"></textarea>
+  <div class="entry-actions">
+   <button class="mic" id="bMic" aria-label="Sesle ekle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+   <button class="btn primary grow" id="bAdd">Ekle</button>
+   <button class="btn ghost" id="bClr">Temizle</button>
+  </div>
+  <label class="switch-row"><span>Söyleyince otomatik ekle</span><input type="checkbox" id="auto" class="sw"></label>
+ </div>
+ <p class="hint">Sıra: ad soyad, sokak, bina no. İsterseniz daire, kat veya mahalle ekleyin. Sesli komutlar: “teslim edildi”, “edilemedi”.</p>
  <div id="banner"></div>
- <button class="btn big k" id="bGo" style="margin-top:10px">🧭 Tüm adresler girildi → Rota oluştur</button>
- <div class="lab" style="margin-top:14px">Son eklenenler</div><div id="recent"></div>
+ <button class="btn primary" id="bGo"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 21 3l-8 18-2-8-8-2Z"/></svg>Rotayı oluştur</button>
+ <h2 class="sec">Son eklenenler</h2>
+ <div id="recent" class="rows"></div>
 </section>
 
 <section id="p-map" class="pane">
  <div id="map"></div>
- <div class="top"><button class="btn g" id="bFollow">📍 Takip: Açık</button><button class="btn" id="bNavStart">🚗 Rotayı başlat</button><button class="btn p" id="bShare">📤 Paylaş</button><button class="btn x" id="bMore">☰ Diğer</button>
-  <div id="more" style="display:none;width:100%"><div class="row" style="margin-top:0"><button class="btn p" id="bStart">Başlangıç seç</button><button class="btn x" id="bMe">Başlangıç: konumum</button>
-  <button class="btn" id="bRoute">Rotayı hesapla</button><button class="btn" id="bDraw">Yolu çiz</button><button class="btn x" id="bMode">Manuel</button><button class="btn r" id="bTrail">Gidilen izi sil</button><button class="btn" id="bNav">🧭 Sıradakini Google Haritalar'da aç</button></div></div></div>
+ <div class="top">
+  <button class="pill on" id="bFollow" aria-label="Konum takibi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Takip</span></button>
+  <button class="pill go" id="bNavStart"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 21 3l-8 18-2-8-8-2Z"/></svg>Rotayı başlat</button>
+  <button class="pill icon" id="bShare" aria-label="Rotayı paylaş"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>
+  <div style="position:relative"><button class="pill icon" id="bMore" aria-label="Diğer"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
+   <div id="more" style="display:none">
+    <button id="bStart">Başlangıç noktasını haritadan seç</button>
+    <button id="bMe">Başlangıç: konumum</button>
+    <button id="bRoute">Rotayı yeniden hesapla</button>
+    <button id="bDraw">Yolu yeniden çiz</button>
+    <button id="bNav">Sıradakini Google Haritalar'da aç</button>
+   </div></div>
+ </div>
  <div class="navp" id="navp"></div>
  <div class="sheet" id="sheet"></div>
 </section>
 
 <section id="p-list" class="pane">
- <div class="set"><b>Google API anahtarı</b> (Maps JavaScript + Geocoding + Routes)
-  <input id="key" placeholder="AIza..."><div class="row" style="margin-top:4px">
-  <button class="btn" id="bKey">Kaydet</button><button class="btn p" id="bTest">Google bağlantısını sına</button><button class="btn k" id="bRetry">Bulunamayanları tekrar dene</button>
-  <button class="btn r" id="bClear">Tüm verileri sil</button></div></div>
- <div id="list"></div>
+ <header class="hd"><h1>Liste</h1><span class="count" id="lcnt"></span></header>
+ <div id="list" class="rows"></div>
+ <p class="empty" id="lempty">Henüz adres yok. Ekle sekmesinden başlayın.</p>
 </section>
 
-<nav><button data-t="add" class="on">🎤 Ekle</button><button data-t="map">🗺️ Harita</button><button data-t="list">📋 Liste</button></nav>
-</div><div id="ov"></div><div id="toast"></div>
+<section id="p-set" class="pane">
+ <header class="hd"><h1>Ayarlar</h1></header>
+ <div class="group"><h2>Google Haritalar</h2>
+  <label class="fld" for="key">API anahtarı</label>
+  <div class="keyrow"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…"><button class="btn ghost" id="bKeyShow">Göster</button></div>
+  <div class="row"><button class="btn primary grow" id="bKey">Kaydet</button><button class="btn ghost grow" id="bTest">Bağlantıyı sına</button></div>
+  <button class="btn ghost block" id="bRetry">Konumu bulunamayanları yeniden ara</button>
+ </div>
+ <div class="group"><h2>Teslimat</h2>
+  <label class="switch-row" style="padding-top:4px"><span>Otomatik teslim<small>Adrese 30 m yaklaşıp 15 sn kalınca teslim edildi sayılır</small></span><input type="checkbox" id="bMode" class="sw"></label>
+  <label class="switch-row"><span>Sesli yönlendirme</span><input type="checkbox" id="voiceSw" class="sw"></label>
+ </div>
+ <div class="group" id="gInstall" style="display:none"><h2>Uygulama</h2><button class="btn primary block" id="bInstall">Uygulamayı telefona yükle</button></div>
+ <div class="group"><h2>Veriler</h2>
+  <button class="btn ghost block" id="bTrail">Gidilen yol izini sıfırla</button>
+  <button class="btn danger block" id="bClear">Tüm adresleri ve rotayı sil</button>
+ </div>
+</section>
+
+<nav>
+ <button data-t="add" class="on"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ekle</button>
+ <button data-t="map"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>Harita</button>
+ <button data-t="list"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Liste</button>
+ <button data-t="set"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Ayarlar</button>
+</nav>
+</div><div id="ov"></div><div id="act"></div><div id="toast" role="status"></div>
 <script>
+const IC={"check": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 5 5L20 7\"/></svg>", "undo": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>", "more": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/></svg>", "edit": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20h4L19 9l-4-4L4 16v4Z\"/></svg>", "x": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6 6 18\"/></svg>", "pin": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>"};
 const MAX=300,ARRIVE_M=30,DWELL_MS=15000,LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -189,9 +319,9 @@ function addEntry(text){
  S.items.push(it);save();renderAll();geoItem(it);
  toast('Eklendi: '+(p.name||v.slice(0,30))+(S.area||p.mahalle?'':' (çalışma bölgesi boş, konum yanlış olabilir)'))}
 let editId=null;
-function endEdit(){editId=null;$('#bAdd').textContent='➕ Ekle';$('#editbar').style.display='none'}
+function endEdit(){editId=null;$('#bAdd').textContent='Ekle';$('#editbar').style.display='none'}
 function startEdit(id){const it=find(id);if(!it)return;editId=id;$('#txt').value=it.raw||addrOf(it);
- $('#bAdd').textContent='💾 Kaydet';const b=$('#editbar');b.style.display='block';b.textContent='Düzenleniyor: '+(it.name||it.street||'adres')+' — düzeltip Kaydet\'e basın (iptal için Temizle).';
+ $('#bAdd').textContent='Kaydet';const b=$('#editbar');b.style.display='block';b.textContent=(it.name||it.street||'Adres')+' düzenleniyor. Düzeltip Kaydet\'e basın, vazgeçmek için Temizle.';
  document.querySelector('nav button[data-t="add"]').click();$('#txt').focus()}
 function saveEdit(){const v=$('#txt').value.trim();if(v.length<4)return toast('Adresi yazın');const it=find(editId);if(!it){endEdit();return}
  const oldQ=queryOf(it),p=parseEntry(v);
@@ -206,7 +336,7 @@ $('#auto').checked=S.auto!==false;$('#auto').onchange=()=>{S.auto=$('#auto').che
 
 /* ---------- sesli giriş ---------- */
 let rec=null,listening=false,pinTarget=null;
-function setMic(){$('#bMic').textContent=listening?'⏹ Dinleniyor… (durdur)':'🎤 Dinlemeyi başlat';$('#bMic').className='btn '+(listening?'r':'p')}
+function setMic(){const b=$('#bMic');b.classList.toggle('on',listening);b.setAttribute('aria-pressed',listening?'true':'false');b.setAttribute('aria-label',listening?'Dinlemeyi durdur':'Sesle ekle')}
 function markNext(st){const n=nextStop();if(!n)return toast('Sıradaki durak yok (önce rota oluşturun)');upd(n.id,{status:st});toast((st==='delivered'?'Teslim edildi: ':'Edilemedi: ')+(n.name||''))}
 function handleSpeech(s){const n=norm(s);
  if(/^(TESLIM EDILDI|TESLIM ETTIM|TAMAM)$/.test(n))return markNext('delivered');
@@ -265,23 +395,22 @@ function renderMap(){if(!map)return;markers.forEach(m=>m.setMap(null));markers=[
  renderSheet()}
 function renderSheet(){const it=find(sel)||nextStop();
  const c=S.items.reduce((a,i)=>{a[i.status]++;return a},{pending:0,delivered:0,failed:0});
- let h=`<div>🟢 Bekleyen ${c.pending} &nbsp; ⚫ Teslim ${c.delivered} &nbsp; ⚪ Edilemedi ${c.failed}</div><div class="a" id="dist"></div>`;
- if(S.dirty)h+='<div class="banner">Rota değişti. Çizgiyi yenilemek için "Yolu çiz"e basın.</div>';
- if(!it)h+='<div class="a">Kargo seçin veya rota oluşturun.</div>';
- else h+=`<div class="n">${sel?'':'Sıradaki: '}${esc(it.name||'(isim yok)')}</div><div class="a">${esc(addrOf(it))}</div>
- <div class="row"><button class="btn g" data-a="delivered" data-id="${it.id}">Teslim edildi</button>
- <button class="btn x" data-a="failed" data-id="${it.id}">Edilemedi</button>
- <button class="btn" data-a="pending" data-id="${it.id}">Bekliyor</button>
- <button class="btn p" data-a="edit" data-id="${it.id}">Düzenle</button><button class="btn k" data-a="pin" data-id="${it.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
+ let h=`<div class="stats"><span><b>${c.pending}</b>bekliyor</span><span><b>${c.delivered}</b>teslim</span><span><b>${c.failed}</b>edilemedi</span></div><div class="dist" id="dist"></div>`;
+ if(S.dirty)h+='<div class="banner">Rota değişti. Çizgiyi güncellemek için ⋯ menüsünden "Yolu yeniden çiz"e basın.</div>';
+ if(!it)h+='<div class="nextl">Haritada bir adrese dokunun ya da rotayı oluşturun.</div>';
+ else h+=`<div class="nextl">${sel?'Seçili adres':'Sıradaki durak'}${orderOf(it.id)?', '+orderOf(it.id)+'. sırada':''}</div><div class="nextn">${esc(it.name||'(isim yok)')}</div><div class="a">${esc(addrOf(it))}</div>
+ <div class="row">${it.status==='pending'?`<button class="btn g grow" data-a="delivered" data-id="${it.id}">${IC.check}Teslim edildi</button><button class="btn ghost" data-a="failed" data-id="${it.id}">Edilemedi</button>`:`<button class="btn ghost grow" data-a="pending" data-id="${it.id}">${IC.undo}Bekliyor'a al</button>`}<button class="ib" data-a="menu" data-id="${it.id}" aria-label="Diğer işlemler">${IC.more}</button></div>`;
  $('#sheet').innerHTML=h;renderDist()}
 $('#sheet').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
-function act(id,a){if(a==='edit'){startEdit(id);return}
+function act(id,a){if(a==='menu'){openAct(id);return}if(a==='edit'){startEdit(id);return}
  if(a==='pin'){pinTarget=id;toast('Haritada bu adresin doğru yerine dokunun');document.querySelector('nav button[data-t="map"]').click();return}
  if(a==='del'){if(!ask('Bu adres silinsin mi?'))return;S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);sel=null;save();renderAll()}
  else upd(id,{status:a})}
 $('#bStart').onclick=()=>{pickStart=true;toast('Haritada başlangıç noktasına dokunun')};
 $('#bMe').onclick=()=>{S.start=null;save();renderMap()};
-$('#bMode').onclick=()=>{S.mode=S.mode==='auto'?'manual':'auto';save();renderAll();toast(S.mode==='auto'?'Otomatik: 30 m yaklaşıp 15 sn kalınca teslim sayılır':'Manuel işaretleme')};
+$('#bMode').onchange=()=>{S.mode=$('#bMode').checked?'auto':'manual';save();toast(S.mode==='auto'?'Otomatik teslim açık':'Otomatik teslim kapalı')};
+$('#voiceSw').onchange=()=>{S.voice=$('#voiceSw').checked;save()};
+$('#bKeyShow').onclick=()=>{const k=$('#key'),s=k.type==='password';k.type=s?'text':'password';$('#bKeyShow').textContent=s?'Gizle':'Göster'};
 
 /* ---------- rota ---------- */
 async function legPath(o,d,mid){
@@ -337,34 +466,46 @@ function addNewToRoute(){const ns=S.items.filter(i=>i.isNew&&i.lat!=null&&i.stat
 
 /* ---------- liste / ekran ---------- */
 function renderBanner(){const n=S.items.filter(i=>i.isNew&&i.status==='pending').length;
- $('#banner').innerHTML=n&&S.route.length?`<div class="banner">Rota oluşturulduktan sonra ${n} yeni adres eklendi, rotaya dahil değil.<div class="row"><button class="btn g" id="bNew">Rotaya ekle (onaylı)</button></div></div>`:'';
+ $('#banner').innerHTML=n&&S.route.length?`<div class="banner">Rota oluşturulduktan sonra ${n} adres eklendi, rotada değiller.<div class="row"><button class="btn g" id="bNew">Rotaya ekle</button></div></div>`:'';
  const b=$('#bNew');if(b)b.onclick=addNewToRoute}
-function geoNote(i){const f=i.found?' Google: '+i.found:'';return ({pending:'Konum aranıyor…'+(i.geoErr?' ['+i.geoErr+']':''),ok:'Konum tam.'+f,approx:'⚠ Yaklaşık konum (turuncu halka) — doğruysa bırakın, değilse "Konumu seç".'+f,none:'⚠ Konum bulunamadı'+(i.geoErr?' ['+i.geoErr+']':'')})[i.geo]||''}
+function geoNote(i){return ({pending:'Konum aranıyor'+(i.geoErr?': '+i.geoErr:'…'),approx:'Yaklaşık konum, haritadan kontrol edin',none:'Konum bulunamadı'+(i.geoErr?': '+i.geoErr:'')})[i.geo]||''}
+function rowHtml(i,num){const o=orderOf(i.id),d=i.status!=='pending',w=geoNote(i);
+ return `<div class="rw${i.status==='delivered'?' done':''}"><span class="no" style="--c:${colorOf(i)}">${num&&o?o:''}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${w?`<div class="warn">${esc(w)}</div>`:''}</div>
+ ${d?`<button class="ib" data-a="pending" data-id="${i.id}" aria-label="Bekliyor'a al">${IC.undo}</button>`:`<button class="ib ok" data-a="delivered" data-id="${i.id}" aria-label="Teslim edildi">${IC.check}</button>`}<button class="ib" data-a="menu" data-id="${i.id}" aria-label="Diğer işlemler">${IC.more}</button></div>`}
 function renderList(){
  const arr=S.route.length?[...S.items].sort((a,b)=>(S.route.indexOf(a.id)+1||9999)-(S.route.indexOf(b.id)+1||9999)):S.items;
- $('#list').innerHTML=arr.map(i=>{const o=orderOf(i.id);return `<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col">
- <div class="n">${o?o+'. ':''}${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}${i.isNew?' • yeni':''}</div></div>
- <div class="bt">${o?`<button class="btn x" data-a="up" data-id="${i.id}">▲</button><button class="btn x" data-a="down" data-id="${i.id}">▼</button><button class="btn x" data-a="to" data-id="${i.id}">Taşı</button>`:''}
- <button class="btn ${i.inRoute?'x':''}" data-a="route" data-id="${i.id}">${i.inRoute?'Rotadan çıkar':'Rotaya ekle'}</button>
- <button class="btn p" data-a="edit" data-id="${i.id}">Düzenle</button><button class="btn g" data-a="delivered" data-id="${i.id}">Teslim</button><button class="btn k" data-a="pin" data-id="${i.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${i.id}">Sil</button></div></div>`}).join('')}
-$('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id,a=b.dataset.a;
- if(a==='up')move(id,-1);else if(a==='down')move(id,1);else if(a==='to')moveTo(id);else if(a==='route')toggleRoute(id);else act(id,a)};
-function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col"><div class="n">${esc(i.name||'(isim yok)')}</div><div class="a">${esc(addrOf(i))}</div><div class="a">${esc(geoNote(i))}</div></div><div class="bt"><button class="btn p" data-e="1" data-id="${i.id}">Düzenle</button><button class="btn r" data-id="${i.id}">Geri al</button></div></div>`).join('')}
+ $('#list').innerHTML=arr.map(i=>rowHtml(i,true)).join('');
+ const pend=S.items.filter(i=>i.status==='pending').length;$('#lcnt').textContent=S.items.length?pend+' bekliyor':'';$('#lempty').style.display=S.items.length?'none':'block'}
+$('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
+function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="rw"><span class="dotc" style="--c:${colorOf(i)}"></span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${geoNote(i)?`<div class="warn">${esc(geoNote(i))}</div>`:''}</div><button class="ib" data-e="1" data-id="${i.id}" aria-label="Düzenle">${IC.edit}</button><button class="ib" data-id="${i.id}" aria-label="Geri al">${IC.x}</button></div>`).join('')}
 $('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;if(b.dataset.e){startEdit(id);return}S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
+/* işlem menüsü */
+function openAct(id){const i=find(id);if(!i)return;const o=orderOf(id),A=$('#act');
+ const it=(a,label,cls)=>`<button class="ai${cls?' '+cls:''}" data-a="${a}">${label}</button>`;
+ A.innerHTML=`<div class="panel" role="dialog" aria-label="Adres işlemleri"><div class="ah"><div class="nm">${o?o+'. ':''}${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${i.found?`<div class="a">Google: ${esc(i.found)}</div>`:''}</div>
+ <div class="ar">${i.status==='pending'?`<button class="btn g" data-a="delivered">${IC.check}Teslim edildi</button><button class="btn ghost" data-a="failed">Edilemedi</button>`:`<button class="btn ghost" data-a="pending">${IC.undo}Bekliyor'a al</button>`}</div>
+ ${it('edit','Adresi düzenle')}${i.lat!=null?it('nav','Google Haritalar\'da yol tarifi'):''}${it('pin','Konumu haritada seç')}
+ ${o?it('up','Bir sıra yukarı')+it('down','Bir sıra aşağı')+it('to','Sıra numarası ver'):''}
+ ${it('route',i.inRoute?'Rotadan çıkar':'Rotaya ekle')}${it('del','Sil','danger')}${it('close','Vazgeç')}</div>`;
+ A.classList.add('on');
+ A.onclick=e=>{if(e.target===A){closeAct();return}const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;closeAct();
+  if(a==='close')return;if(a==='up')move(id,-1);else if(a==='down')move(id,1);else if(a==='to')moveTo(id);else if(a==='route')toggleRoute(id);else if(a==='nav')openExt(navUrl(i));else act(id,a)}}
+function closeAct(){const A=$('#act');A.classList.remove('on');A.innerHTML=''}
 $('#key').value=S.key||'';
 $('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;gDenied=false;toast('Kaydedildi');ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{})};
-$('#bTest').onclick=async()=>{if(!S.key)return alert('Önce anahtarı yazıp Kaydet\'e basın');try{const j=await gcall('Atatürk Bulvarı Kızılay Ankara');alert('Geocoding: '+j.status+(j.error_message?'\n'+j.error_message:'')+(j.status==='OK'?'\nÇalışıyor.':''))}catch(e){alert('Google erişilemedi: '+e)}};
+$('#bTest').onclick=async()=>{if(!S.key)return toast('Önce anahtarı yazıp Kaydet\'e basın');try{const j=await gcall('Atatürk Bulvarı Kızılay Ankara');toast(j.status==='OK'?'Google bağlantısı çalışıyor':'Google yanıtı: '+j.status+(j.error_message?' – '+j.error_message:''))}catch(e){alert('Google erişilemedi: '+e)}};
 $('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem);return;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
 $('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false};sel=null;clearLines();save();renderAll()}};
-function renderAll(){$('#cnt').textContent='Eklenen: '+S.items.length+'/'+MAX;$('#bMode').textContent=S.mode==='auto'?'Otomatik':'Manuel';
- $('#bMode').className='btn '+(S.mode==='auto'?'g':'x');renderList();renderRecent();renderBanner();renderMap();renderSheet();if(typeof navSync==='function')navSync()}
+function renderAll(){$('#cnt').textContent=S.items.length+' / '+MAX;$('#bMode').checked=S.mode==='auto';$('#voiceSw').checked=S.voice!==false;
+ renderList();renderRecent();renderBanner();renderMap();renderSheet();if(typeof navSync==='function')navSync()}
 
 /* ---------- canlı takip düğmeleri ---------- */
 let wl=null;async function keepAwake(){try{if(navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&tab==='map')keepAwake()});
-function renderFollow(){const b=$('#bFollow');b.textContent='📍 Takip: '+(S.follow?'Açık':'Kapalı');b.className='btn '+(S.follow?'g':'x')}
+function renderFollow(){const b=$('#bFollow');b.classList.toggle('on',!!S.follow);b.setAttribute('aria-pressed',S.follow?'true':'false')}
 $('#bFollow').onclick=()=>{S.follow=!S.follow;save();renderFollow();if(S.follow&&map&&pos){map.setZoom(Math.max(map.getZoom(),16));map.panTo(pos)}};
-$('#bMore').onclick=()=>{const m=$('#more');m.style.display=m.style.display==='none'?'block':'none'};
+$('#bMore').onclick=e=>{e.stopPropagation();const m=$('#more');m.style.display=m.style.display==='none'?'block':'none'};
+$('#more').onclick=()=>{$('#more').style.display='none'};
 $('#bTrail').onclick=()=>{if(!ask('Gidilen yol izi ve kilometre sıfırlansın mı?'))return;S.trail=[];S.dist=0;if(trailLine)trailLine.setPath([]);save();renderDist()};
 const navUrl=i=>'https://www.google.com/maps/dir/?api=1&destination='+i.lat+','+i.lng+'&travelmode=driving&dir_action=navigate';
 const viewUrl=i=>'https://www.google.com/maps/search/?api=1&query='+i.lat+','+i.lng;
@@ -428,8 +569,8 @@ function navRender(){const e=$('#navp');if(!nav.on){e.style.display='none';retur
   :nx?'<div class="ins"><div class="ic">'+manIcon(nx.man)+'</div><div><div class="big">'+fmtD(dEnd)+'</div><div class="txt">'+esc(nx.text||'Devam edin')+'</div></div></div>'
   :'<div class="ins"><div class="ic">📍</div><div><div class="big">'+fmtD(dEnd)+'</div><div class="txt">Durak: '+esc(cur.name||'(isim yok)')+'</div></div></div>';
  e.className='navp'+(nav.arrived?' arr':'');
- e.innerHTML=ins+'<div class="sub">Durak '+(S.route.indexOf(cur.id)+1)+' · '+esc(cur.name||'(isim yok)')+' · '+esc(addrOf(cur))+'<br>'+fmtD(rm.d)+' · ~'+fmtT(rm.t)+' · kalan '+left+' durak</div>'+
- '<div class="row"><button class="btn g" data-n="delivered">✓ Teslim edildi</button><button class="btn x" data-n="failed">Edilemedi</button><button class="btn" data-n="skip">Sonraki</button><button class="btn k" data-n="voice">'+(S.voice?'🔊':'🔇')+'</button><button class="btn r" data-n="stop">Bitir</button></div>'}
+ e.innerHTML=ins+'<div class="sub">'+(S.route.indexOf(cur.id)+1)+'. durak: '+esc(cur.name||'(isim yok)')+', '+esc(addrOf(cur))+'<br>'+fmtD(rm.d)+', yaklaşık '+fmtT(rm.t)+'. Kalan '+left+' durak.</div>'+
+ '<div class="row"><button class="btn g" data-n="delivered">'+IC.check+'Teslim edildi</button><button class="btn x" data-n="failed">Edilemedi</button><button class="btn" data-n="skip">Sonraki</button><button class="btn k" data-n="voice">'+(S.voice?'🔊':'🔇')+'</button><button class="btn r" data-n="stop">Bitir</button></div>'}
 function navAdvance(){nav.leg++;nav.step=0;nav.spoken={};nav.arrived=null;
  const c=navCur();if(!c||c.status!=='pending'||nav.leg>=nav.legs.length){navCompute();return}
  say('Sıradaki durak: '+(c.name||'')+'. '+fmtD(nav.legs[nav.leg].dist));navRender()}
@@ -519,13 +660,13 @@ async function showShared(){if(!location.hash.startsWith('#r='))return;let list;
   if(k!==undefined&&list[k])openExt(navUrl(list[k]))};
  draw();ov.classList.add('on')}
 window.addEventListener('hashchange',showShared);
-document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dataset.t;
+document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dataset.t;closeAct();$('#more').style.display='none';
  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+tab));
  if(tab==='map'){keepAwake();try{await initMap()}catch(e){}}});
-let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#bInstall').style.display='block'});
-$('#bInstall').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(e){}dip=null;$('#bInstall').style.display='none'};
-window.addEventListener('appinstalled',()=>{$('#bInstall').style.display='none';toast('Yüklendi: ana ekrandaki "Kargo Rota" simgesinden açın')});
+let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#gInstall').style.display='block'});
+$('#bInstall').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(e){}dip=null;$('#gInstall').style.display='none'};
+window.addEventListener('appinstalled',()=>{$('#gInstall').style.display='none';toast('Yüklendi: ana ekrandaki "Kargo Rota" simgesinden açın')});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 renderAll();renderFollow();showShared();if(S.key)ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{});
 </script></body></html>
