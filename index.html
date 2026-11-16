@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827"><title>Kargo Rota</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,sans-serif;background:#fff;overscroll-behavior:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+.pane{display:none;flex:1;position:relative;min-height:0;overflow:hidden}.pane.on{display:flex;flex-direction:column}
+nav{display:flex;background:#111827;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weight:600;font-size:15px}nav button.on{background:#1f2937}
+video{width:100%;height:100%;object-fit:cover;background:#000;position:absolute;inset:0}
+#flash{position:absolute;inset:0;background:rgba(22,163,74,.55);opacity:0;pointer-events:none;transition:opacity .25s}#flash.on{opacity:1;transition:none}
+.hud{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;background:rgba(0,0,0,.62);color:#fff;border-radius:10px;padding:10px}
+.hud b{font-size:18px}.hud div{font-size:13px;margin-top:3px;color:#d1fae5}
+.btn{border:0;border-radius:8px;padding:9px 12px;color:#fff;background:#2563eb;font-weight:600;font-size:13px}
+.btn.g{background:#16a34a}.btn.x{background:#6b7280}.btn.r{background:#dc2626}.btn.p{background:#7c3aed}.btn.k{background:#000}
+#map{flex:1}.top{position:absolute;top:8px;left:8px;right:8px;display:flex;flex-wrap:wrap;gap:6px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;padding:12px;box-shadow:0 -2px 10px rgba(0,0,0,.25);max-height:45%;overflow:auto}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.n{font-weight:700;font-size:16px}.a{font-size:12px;color:#374151;margin:2px 0}
+#list{overflow:auto;flex:1}.card{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #e5e7eb}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}.card .col{flex:1}.card .bt{display:flex;flex-direction:column;gap:4px}
+.set{padding:10px;background:#f3f4f6;font-size:13px}.set input{width:100%;padding:8px;margin:4px 0}
+#startcam{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:16px 22px;font-size:16px}
+#toast{position:fixed;left:10px;right:10px;bottom:80px;background:#111827;color:#fff;padding:10px;border-radius:8px;display:none;z-index:9;font-size:13px}
+</style></head><body><div id="app">
+<section id="p-camera" class="pane on">
+ <video id="vid" playsinline muted autoplay></video><div id="flash"></div>
+ <div class="hud"><b id="cnt">0/300 okundu</b><div id="msg">Başlamak için kamerayı açın</div><div id="ocr"></div></div>
+ <button class="btn" id="startcam">📷 Kamerayı başlat</button>
+</section>
+<section id="p-map" class="pane">
+ <div id="map"></div>
+ <div class="top"><button class="btn p" id="bStart">Başlangıç seç</button><button class="btn x" id="bMe">Konumum</button>
+  <button class="btn" id="bRoute">Rota oluştur</button><button class="btn x" id="bMode">Manuel</button></div>
+ <div class="sheet" id="sheet"></div>
+</section>
+<section id="p-list" class="pane">
+ <div class="set"><b>Google API anahtarı</b> (Maps JavaScript + Geocoding + Directions)
+  <input id="key" placeholder="AIza..."><div class="row" style="margin-top:4px">
+  <button class="btn" id="bKey">Kaydet</button><button class="btn k" id="bRetry">Bulunamayanları tekrar dene</button>
+  <button class="btn r" id="bClear">Tüm verileri sil</button></div></div>
+ <div id="list"></div>
+</section>
+<nav><button data-t="camera" class="on">📷 Kamera</button><button data-t="map">🗺️ Harita</button><button data-t="list">📋 Liste</button></nav>
+</div><div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+// OCR metninden alıcı adres bilgilerini ayıklar. Tamamen saf JS (test edilebilir).
+const TR = { ç:'C', ğ:'G', ı:'I', ö:'O', ş:'S', ü:'U', Ç:'C', Ğ:'G', İ:'I', Ö:'O', Ş:'S', Ü:'U' };
+function norm(s) {
+  return s.replace(/[çğıöşüÇĞİÖŞÜ]/g, (c) => TR[c]).toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+const SENDER = /LTD|STI\b|SIRKET|TEKSTIL|TICARET|SANAYI|\bA\.?S\b|KARGO|SUBE|MUST|\bTEL\b|ADRES|TESLIM|AKTARMA|ODEME|PARCA|BIRIM|POCH|KOLI|ZARF|TOPLAM|AKTARMA|DESI|\bKG\b/;
+const STREET = '(?:SOKAGI|SOKAK|SOK|SK|CADDESI|CADDE|CAD|CD|BULVARI|BULVAR|BLV)';
+
+function parseText(text) {
+  const lines = text.split('\n').map(norm).filter(Boolean);
+  const idx = lines.findIndex((l) => /\b(MAHALLESI|MAHALLE|MAH|MH)\b/.test(l));
+  if (idx < 0) return null;
+
+  // adres bloğu: mahalle satırı + sonraki satırlar (TEL / ÖDEME'ye kadar)
+  const block = [];
+  for (let i = idx; i < Math.min(lines.length, idx + 4); i++) {
+    if (/^TEL\b|ODEME|POCH/.test(lines[i])) break;
+    block.push(lines[i]);
+  }
+  const b = block.join(' ');
+
+  const mah = b.match(/^(.*?)\s*\b(?:MAHALLESI|MAHALLE|MAH|MH)\b\.?/);
+  const sok = b.match(new RegExp('\\b(?:MAHALLESI|MAHALLE|MAH|MH)\\b\\.?\\s*(.*?\\b' + STREET + '\\b)'));
+  const apt = b.match(new RegExp('\\b' + STREET + '\\b\\.?\\s*(.*?)\\s*\\b(APARTMANI|APARTMAN|APT|SITESI|SITE|PLAZA)\\b'));
+  const no = b.match(/\bNO\s*[:.]?\s*(\d+)([A-Z]\b)?/);
+  const daire = b.match(/\bDAIRE\s*[:.]?\s*(\d+)/) || lines.join(' ').match(/\bDAIRE\s*[:.]?\s*(\d+)/);
+  const kat = b.match(/\bKAT\s*[:.]?\s*(\d+)/);
+
+  // il / ilçe: "ANTALYA / MURATPASA" (ADALYA/02 gibi rakamlı kodlar eşleşmez)
+  let il = null, ilce = null;
+  const order = [...lines.slice(idx), ...lines.slice(0, idx)];
+  for (const l of order) {
+    const m = l.match(/\b([A-Z]{3,})\s*\/\s*([A-Z]{3,})\b/);
+    if (m) { il = m[1]; ilce = m[2]; break; }
+  }
+
+  // alıcı adı: mahalle satırından önceki, firma kelimesi içermeyen 2-5 kelimelik satır
+  let name = null;
+  for (let i = idx - 1; i >= 0; i--) {
+    const l = lines[i], w = l.split(' ').length;
+    if (/^[A-Z ]{5,40}$/.test(l) && w >= 2 && w <= 5 && !SENDER.test(l)) { name = l; break; }
+  }
+
+  const tno = (norm(text).match(/T\.?\s*NO\s*:?\s*(\d{8,})/) || [])[1] || null;
+
+  const res = {
+    tno, name, il, ilce,
+    mahalle: mah && mah[1] ? mah[1].trim() : null,
+    sokak: sok ? sok[1].trim() : null,
+    apt: apt ? (apt[1] + ' ' + apt[2]).trim() : null,
+    no: no ? no[1] + (no[2] || '') : null,
+    kat: kat ? kat[1] : null,
+    daire: daire ? daire[1] : null,
+  };
+  res.ok = !!(res.mahalle && res.ilce && (res.sokak || res.apt));
+  return res;
+}
+
+const MAX=300, ARRIVE_M=30, DWELL_MS=15000, LS='kargo-pwa-v1';
+const $=s=>document.querySelector(s), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let S={items:[],mode:'manual',start:null,route:[],key:''}, tab='camera', sel=null, pos=null, pickStart=false;
+try{Object.assign(S,JSON.parse(localStorage.getItem(LS)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3500)}
+const colorOf=i=>i.status==='delivered'?'#16a34a':i.status==='failed'?'#9ca3af':i.geo==='ok'?'#2563eb':'#000000';
+const addrOf=i=>`${i.mahalle||''} MAH ${i.sokak||''} ${i.apt||''} NO:${i.no||'-'} KAT:${i.kat||'-'} D:${i.daire||'-'} ${i.ilce||''}/${i.il||''}`;
+const orderOf=id=>{const k=S.route.indexOf(id);return k>=0?String(k+1):''};
+const find=id=>S.items.find(i=>i.id===id);
+const nextStop=()=>S.route.map(find).find(i=>i&&i.status==='pending'&&i.inRoute);
+function hav(a,b){const R=6371000,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng);
+ const h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function optimize(start,pts){const rem=[...pts],arr=[start];
+ while(rem.length){const c=arr[arr.length-1];let bi=0,bd=1e18;rem.forEach((p,i)=>{const d=hav(c,p);if(d<bd){bd=d;bi=i}});arr.push(rem.splice(bi,1)[0])}
+ const n=arr.length,d=(a,b)=>hav(arr[a],arr[b]);let imp=true,pass=0;
+ while(imp&&pass++<60){imp=false;for(let i=1;i<n-1;i++)for(let j=i+1;j<n;j++){const af=j+1<n;
+  const dl=d(i-1,j)+(af?d(i,j+1):0)-d(i-1,i)-(af?d(j,j+1):0);
+  if(dl<-1){const seg=arr.slice(i,j+1).reverse();arr.splice(i,j-i+1,...seg);imp=true}}}
+ return arr.slice(1).map(p=>p.id)}
+
+/* ---------- Google Maps ---------- */
+let mapsP=null,map=null,markers=[],polys=[],meMarker=null,startMarker=null;
+window.gm_authFailure=()=>toast('Google API anahtarı geçersiz veya API etkin değil');
+function ensureMaps(){ if(window.google&&google.maps&&google.maps.Map) return Promise.resolve();
+ if(!S.key){toast('Önce Liste sekmesinde Google API anahtarını girin');return Promise.reject()}
+ if(mapsP) return mapsP;
+ mapsP=new Promise((res,rej)=>{const s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(S.key)+'&language=tr';
+  s.onload=res;s.onerror=()=>{mapsP=null;toast('Google Haritalar yüklenemedi (internet?)');rej()};document.head.append(s)});
+ return mapsP}
+let gq=Promise.resolve();
+function geocodeText(q){return gq=gq.then(async()=>{await sleep(120);
+ for(let t=0;t<3;t++){const r=await new Promise(res=>new google.maps.Geocoder().geocode({address:q,componentRestrictions:{country:'TR'}},(rs,st)=>res({rs,st})));
+  if(r.st==='OVER_QUERY_LIMIT'){await sleep(1200);continue}
+  if(r.st!=='OK'||!r.rs.length) return {geo:'none'};
+  const g=r.rs[0],l=g.geometry.location,exact=!g.partial_match&&['ROOFTOP','RANGE_INTERPOLATED'].includes(g.geometry.location_type);
+  return {lat:l.lat(),lng:l.lng(),geo:exact?'ok':'approx'}}
+ return {geo:'pending'}}).catch(()=>({geo:'pending'}))}
+const queryOf=i=>[i.mahalle+' MAH',i.sokak,i.no?'NO '+i.no:'',(i.ilce||'')+'/'+(i.il||'')].filter(Boolean).join(' ');
+async function geoItem(it,q){try{await ensureMaps()}catch(e){return}
+ const g=await geocodeText(q||queryOf(it));upd(it.id,g);}
+function upd(id,p){const i=find(id);if(!i)return;Object.assign(i,p);save();renderAll()}
+function geoPending(){S.items.filter(i=>i.geo==='pending').forEach(i=>geoItem(i))}
+
+/* ---------- kayıt ekleme ---------- */
+function addParsed(p){
+ const key=p.tno||[p.name,p.mahalle,p.sokak,p.no,p.daire].join('|');
+ if(S.items.some(i=>i.key===key)){$('#msg').textContent='Zaten okundu: '+(p.name||'');return}
+ if(S.items.length>=MAX){$('#msg').textContent=MAX+' kargo sınırına ulaşıldı';return}
+ const it={...p,id:Date.now()+''+Math.random().toString(36).slice(2,6),key,geo:'pending',status:'pending',inRoute:true};
+ S.items.push(it);save();
+ const f=$('#flash');f.classList.add('on');setTimeout(()=>f.classList.remove('on'),300);
+ if(navigator.vibrate)navigator.vibrate(60);
+ $('#msg').textContent='✓ '+(p.name||p.mahalle);renderAll();geoItem(it)}
+
+/* ---------- kamera + OCR ---------- */
+let worker=null,camOn=false,busy=false;const video=$('#vid');
+async function startCam(){
+ try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+  video.srcObject=st;await video.play();$('#startcam').style.display='none';
+  try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}
+ }catch(e){toast('Kamera açılamadı: izin verin ve sayfayı HTTPS üzerinden açın');return}
+ $('#ocr').textContent='OCR motoru yükleniyor (ilk seferde ~10 sn)…';
+ worker=await Tesseract.createWorker('eng');$('#ocr').textContent='Hazır – stikeri gösterin';
+ camOn=true;loop()}
+function frame(deg){const w=video.videoWidth,h=video.videoHeight,s=Math.min(1,1400/Math.max(w,h)),sw=Math.round(w*s),sh=Math.round(h*s);
+ const c=document.createElement('canvas'),sp=deg===90||deg===270;c.width=sp?sh:sw;c.height=sp?sw:sh;
+ const x=c.getContext('2d');x.filter='grayscale(1) contrast(1.3)';x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(video,-sw/2,-sh/2,sw,sh);return c}
+async function scanOnce(){if(!video.videoWidth)return;
+ for(const deg of [0,90,270,180]){ if(tab!=='camera')return;
+  const {data}=await worker.recognize(frame(deg));const p=parseText(data.text||'');
+  if(p&&p.ok){addParsed(p);return}
+  if(deg===0&&(data.text||'').replace(/\s/g,'').length<25)return; // metin yok → döndürme deneme
+ }}
+async function loop(){while(camOn){if(tab==='camera'&&!busy){busy=true;$('#ocr').textContent='Okunuyor…';
+ try{await scanOnce()}catch(e){}busy=false;$('#ocr').textContent='Hazır – sıradaki stikeri gösterin'}await sleep(300)}}
+$('#startcam').onclick=startCam;
+
+/* ---------- konum + otomatik teslim ---------- */
+let dwell={id:null,t:0};
+if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{pos={lat:p.coords.latitude,lng:p.coords.longitude};
+ if(meMarker)meMarker.setPosition(pos);
+ if(S.mode!=='auto')return;const n=nextStop();if(!n||n.lat==null)return;
+ if(hav(pos,n)<ARRIVE_M){if(dwell.id!==n.id)dwell={id:n.id,t:Date.now()};
+  else if(Date.now()-dwell.t>DWELL_MS){upd(n.id,{status:'delivered'});if(navigator.vibrate)navigator.vibrate([100,80,100]);dwell={id:null,t:0}}}
+ else dwell={id:null,t:0}},()=>{},{enableHighAccuracy:true,maximumAge:2000});
+
+/* ---------- harita ---------- */
+async function initMap(){await ensureMaps();
+ if(!map){map=new google.maps.Map($('#map'),{center:pos||{lat:36.8969,lng:30.7133},zoom:13,streetViewControl:false,mapTypeControl:false});
+  map.addListener('click',e=>{if(pickStart){S.start={lat:e.latLng.lat(),lng:e.latLng.lng()};pickStart=false;save();renderMap()}else{sel=null;renderSheet()}});
+  meMarker=new google.maps.Marker({map,position:pos||undefined,icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:'#f97316',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},zIndex:5})}
+ google.maps.event.trigger(map,'resize');renderMap()}
+function renderMap(){if(!map)return;markers.forEach(m=>m.setMap(null));markers=[];
+ S.items.filter(i=>i.lat!=null).forEach(i=>{const m=new google.maps.Marker({map,position:{lat:i.lat,lng:i.lng},
+  icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:colorOf(i),fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+  label:{text:orderOf(i.id),color:'#fff',fontSize:'10px',fontWeight:'700'}});
+  m.addListener('click',()=>{sel=i.id;renderSheet()});markers.push(m)});
+ if(startMarker)startMarker.setMap(null);
+ if(S.start)startMarker=new google.maps.Marker({map,position:S.start,label:'B',title:'Başlangıç'});
+ renderSheet()}
+function renderSheet(){const it=find(sel)||nextStop();const c=S.items.reduce((a,i)=>{a[i.status]++;return a},{pending:0,delivered:0,failed:0});
+ const blk=S.items.filter(i=>i.geo!=='ok'&&i.status==='pending').length;
+ let h=`<div>🔵 ${c.pending} &nbsp; 🟢 ${c.delivered} &nbsp; ⚪ ${c.failed} &nbsp; ⚫ ${blk}</div>`;
+ if(!it)h+='<div class="a">Kargo seçin veya rota oluşturun.</div>';
+ else h+=`<div class="n">${sel?'':'Sıradaki: '}${it.name||'(isim yok)'}</div><div class="a">${addrOf(it)}</div>
+ <div class="row"><button class="btn g" data-a="delivered" data-id="${it.id}">Teslim edildi</button>
+ <button class="btn x" data-a="failed" data-id="${it.id}">Edilemedi</button>
+ <button class="btn" data-a="pending" data-id="${it.id}">Bekliyor</button>
+ <button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
+ $('#sheet').innerHTML=h}
+$('#sheet').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
+function act(id,a){if(a==='del'){S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);sel=null;save();renderAll()}
+ else upd(id,{status:a})}
+$('#bStart').onclick=()=>{pickStart=true;toast('Haritada başlangıç noktasına dokunun')};
+$('#bMe').onclick=()=>{S.start=null;save();renderMap()};
+$('#bMode').onclick=()=>{S.mode=S.mode==='auto'?'manual':'auto';save();renderAll();toast(S.mode==='auto'?'Otomatik: 30 m yaklaşıp 15 sn kalınca teslim sayılır':'Manuel işaretleme')};
+$('#bRoute').onclick=async()=>{try{await ensureMaps()}catch(e){return}
+ const s=S.start||pos;if(!s)return toast('Başlangıç seçin veya konum iznini verin');
+ const pts=S.items.filter(i=>i.inRoute&&i.status==='pending'&&i.lat!=null);if(!pts.length)return toast('Rotaya uygun kargo yok');
+ $('#bRoute').textContent='Hesaplanıyor…';
+ S.route=optimize(s,pts);save();polys.forEach(p=>p.setMap(null));polys=[];renderMap();
+ const arr=[s,...S.route.map(find)];let fail=false;
+ for(let a=0;a<arr.length-1;a+=23){const b=Math.min(a+23,arr.length-1);
+  const r=await new Promise(res=>new google.maps.DirectionsService().route({origin:arr[a],destination:arr[b],
+   waypoints:arr.slice(a+1,b).map(p=>({location:{lat:p.lat,lng:p.lng},stopover:true})),travelMode:'DRIVING'},(rs,st)=>res({rs,st})));
+  if(r.st==='OK')polys.push(new google.maps.Polyline({map,path:r.rs.routes[0].overview_path,strokeColor:'#7c3aed',strokeWeight:4}));else fail=true;
+  await sleep(350)}
+ $('#bRoute').textContent='Rota oluştur';toast(fail?'Sıra hesaplandı, bazı yol çizgileri çizilemedi (Directions API?)':'Rota hazır: '+S.route.length+' durak')};
+
+/* ---------- liste / ayarlar ---------- */
+function renderList(){const arr=S.route.length?[...S.items].sort((a,b)=>(S.route.indexOf(a.id)+1||9999)-(S.route.indexOf(b.id)+1||9999)):S.items;
+ $('#list').innerHTML=arr.map(i=>`<div class="card"><div class="dot" style="background:${colorOf(i)}"></div><div class="col">
+ <div class="n">${orderOf(i.id)?orderOf(i.id)+'. ':''}${i.name||'(isim okunamadı)'}</div><div class="a">${addrOf(i)}</div>
+ <div class="a">${{pending:'Konum aranıyor…',ok:'Konum tam',approx:'Yaklaşık konum (siyah)',none:'Konum bulunamadı (siyah)'}[i.geo]}</div></div>
+ <div class="bt"><button class="btn ${i.inRoute?'x':''}" data-a="route" data-id="${i.id}">${i.inRoute?'Rotadan çıkar':'Rotaya ekle'}</button>
+ ${i.geo==='none'||i.geo==='approx'?`<button class="btn k" data-a="fix" data-id="${i.id}">Adresi düzelt</button>`:''}
+ <button class="btn r" data-a="del" data-id="${i.id}">Sil</button></div></div>`).join('')}
+$('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id,a=b.dataset.a;
+ if(a==='route'){const i=find(id);upd(id,{inRoute:!i.inRoute})}
+ else if(a==='fix'){const q=prompt('Doğru adresi yazın (ör: Etiler Mah. 867 Sk. No:16 Muratpaşa/Antalya):',queryOf(find(id)));if(q)geoItem(find(id),q)}
+ else act(id,a)};
+$('#key').value=S.key||'';
+$('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;toast('Kaydedildi');ensureMaps().then(geoPending).catch(()=>{})};
+$('#bRetry').onclick=()=>{S.items.filter(i=>i.geo==='none').forEach(i=>geoItem(i))};
+$('#bClear').onclick=()=>{if(confirm('Tüm kargolar silinsin mi?')){S={...S,items:[],route:[],start:null};sel=null;save();renderAll()}};
+
+function renderAll(){$('#cnt').textContent=S.items.length+'/'+MAX+' okundu';$('#bMode').textContent=S.mode==='auto'?'Otomatik':'Manuel';
+ $('#bMode').className='btn '+(S.mode==='auto'?'g':'x');renderList();renderMap();renderSheet()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dataset.t;
+ document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+ document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+tab));
+ if(tab==='map'){try{await initMap()}catch(e){}}});
+renderAll();if(S.key)ensureMaps().then(geoPending).catch(()=>{});
+</script></body></html>
