@@ -22,7 +22,10 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 .card .bt .btn{padding:7px 9px;font-size:12px}
 .set{padding:10px;background:#f3f4f6;font-size:13px}
 .lbl{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
-#toast{position:fixed;left:10px;right:10px;bottom:80px;background:#111827;color:#fff;padding:10px;border-radius:8px;display:none;z-index:9;font-size:13px}
+#ov{position:fixed;inset:0;background:#fff;z-index:20;overflow:auto;display:none;padding:12px;padding-bottom:40px}
+#ov.on{display:block}#ov .card{cursor:pointer}.seg{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.done .n{text-decoration:line-through;color:#6b7280}
+#toast{position:fixed;left:10px;right:10px;bottom:80px;z-index:30;background:#111827;color:#fff;padding:10px;border-radius:8px;display:none;z-index:9;font-size:13px}
 </style></head><body><div id="app">
 
 <section id="p-add" class="pane on">
@@ -43,8 +46,9 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 
 <section id="p-map" class="pane">
  <div id="map"></div>
- <div class="top"><button class="btn p" id="bStart">Başlangıç seç</button><button class="btn x" id="bMe">Konumum</button>
-  <button class="btn" id="bRoute">Rotayı hesapla</button><button class="btn" id="bDraw">Yolu çiz</button><button class="btn x" id="bMode">Manuel</button></div>
+ <div class="top"><button class="btn g" id="bFollow">📍 Takip: Açık</button><button class="btn" id="bNav">🧭 Sıradakine git</button><button class="btn p" id="bShare">📤 Paylaş</button><button class="btn x" id="bMore">☰ Diğer</button>
+  <div id="more" style="display:none;width:100%"><div class="row" style="margin-top:0"><button class="btn p" id="bStart">Başlangıç seç</button><button class="btn x" id="bMe">Başlangıç: konumum</button>
+  <button class="btn" id="bRoute">Rotayı hesapla</button><button class="btn" id="bDraw">Yolu çiz</button><button class="btn x" id="bMode">Manuel</button><button class="btn r" id="bTrail">Gidilen izi sil</button></div></div></div>
  <div class="sheet" id="sheet"></div>
 </section>
 
@@ -57,7 +61,7 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 </section>
 
 <nav><button data-t="add" class="on">🎤 Ekle</button><button data-t="map">🗺️ Harita</button><button data-t="list">📋 Liste</button></nav>
-</div><div id="toast"></div>
+</div><div id="ov"></div><div id="toast"></div>
 <script>
 const MAX=300,ARRIVE_M=30,DWELL_MS=15000,LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -98,8 +102,9 @@ function parseEntry(text){
 }
 
 /* ---------- durum ---------- */
-let S={items:[],mode:'manual',start:null,route:[],key:'',area:'',auto:true,dirty:false}, tab='add', sel=null, pos=null, pickStart=false;
+let S={items:[],mode:'manual',start:null,route:[],key:'',area:'',auto:true,dirty:false,trail:[],dist:0,follow:true}, tab='add', sel=null, pos=null, pickStart=false;
 try{Object.assign(S,JSON.parse(localStorage.getItem(LS)||'{}'))}catch(e){}
+S.trail=S.trail||[];S.dist=S.dist||0;if(S.follow===undefined)S.follow=true;
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3800)}
 // teslim edilen = siyah, henüz edilmeyen = yeşil, edilemedi = gri
@@ -128,7 +133,7 @@ function insertCheapest(id){const it=find(id),origin=pos||S.start;
  S.route.splice(idx,0,id)}
 
 /* ---------- Google Maps ---------- */
-let mapsP=null,map=null,markers=[],polys=[],meMarker=null,startMarker=null;
+let mapsP=null,map=null,markers=[],polys=[],meMarker=null,startMarker=null,trailLine=null,accCircle=null,heading=null,firstFix=true,trailDirty=0;
 window.gm_authFailure=()=>toast('Google API anahtarı geçersiz veya API etkin değil');
 function ensureMaps(){if(window.google&&google.maps&&google.maps.Map)return Promise.resolve();
  if(!S.key){toast('Önce Liste sekmesinde Google API anahtarını girin');return Promise.reject()}
@@ -213,18 +218,35 @@ $('#bMic').onclick=async()=>{const SR=window.SpeechRecognition||window.webkitSpe
 
 /* ---------- konum + otomatik teslim ---------- */
 let dwell={id:null,t:0};
-if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{pos={lat:p.coords.latitude,lng:p.coords.longitude};
- if(meMarker)meMarker.setPosition(pos);
+function meIcon(){const moving=heading!=null&&!isNaN(heading);
+ return moving?{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:6,rotation:heading,fillColor:'#2563eb',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}
+  :{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:'#2563eb',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}}
+function onPos(p){const c=p.coords;pos={lat:c.latitude,lng:c.longitude};
+ heading=(c.speed!=null&&c.speed>0.7&&c.heading!=null&&!isNaN(c.heading))?c.heading:null;
+ const last=S.trail[S.trail.length-1];
+ if(c.accuracy<=40){const lp=last&&{lat:last[0],lng:last[1]},d=lp?hav(lp,pos):1e9;
+  if(d>=8){if(lp&&d<500)S.dist+=d;S.trail.push([+pos.lat.toFixed(6),+pos.lng.toFixed(6)]);if(S.trail.length>5000)S.trail.splice(0,S.trail.length-5000);
+   if(trailLine)trailLine.getPath().push(new google.maps.LatLng(pos.lat,pos.lng));if(++trailDirty>=10){trailDirty=0;save()}}}
+ if(map&&window.google){if(meMarker){meMarker.setPosition(pos);meMarker.setIcon(meIcon())}
+  if(accCircle){accCircle.setCenter(pos);accCircle.setRadius(Math.min(c.accuracy||0,200))}
+  if(S.follow){if(firstFix){map.setZoom(17);firstFix=false}map.panTo(pos)}}
+ renderDist()}
+function renderDist(){const e=$('#dist');if(e)e.textContent='Gidilen yol: '+(S.dist/1000).toFixed(1)+' km'}
+if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{onPos(p);
  if(S.mode!=='auto')return;const n=nextStop();if(!n)return;
  if(hav(pos,n)<ARRIVE_M){if(dwell.id!==n.id)dwell={id:n.id,t:Date.now()};
   else if(Date.now()-dwell.t>DWELL_MS){upd(n.id,{status:'delivered'});if(navigator.vibrate)navigator.vibrate([100,80,100]);dwell={id:null,t:0}}}
- else dwell={id:null,t:0}},()=>{},{enableHighAccuracy:true,maximumAge:2000});
+ else dwell={id:null,t:0}},e=>{if(e.code===1)toast('Konum izni verilmedi: canlı takip çalışmaz')},{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
 
 /* ---------- harita ---------- */
 async function initMap(){await ensureMaps();
  if(!map){map=new google.maps.Map($('#map'),{center:pos||{lat:36.8969,lng:30.7133},zoom:13,streetViewControl:false,mapTypeControl:false});
   map.addListener('click',e=>{if(pinTarget){upd(pinTarget,{lat:e.latLng.lat(),lng:e.latLng.lng(),geo:'ok',geoErr:''});pinTarget=null;toast('Konum kaydedildi')}else if(pickStart){S.start={lat:e.latLng.lat(),lng:e.latLng.lng()};pickStart=false;save();renderMap()}else{sel=null;renderSheet()}});
-  meMarker=new google.maps.Marker({map,position:pos||undefined,icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:'#f97316',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},zIndex:5})}
+  trailLine=new google.maps.Polyline({map,path:S.trail.map(x=>({lat:x[0],lng:x[1]})),strokeColor:'#2563eb',strokeOpacity:.8,strokeWeight:5,zIndex:3});
+  accCircle=new google.maps.Circle({map,center:pos||{lat:0,lng:0},radius:0,strokeColor:'#2563eb',strokeOpacity:.3,strokeWeight:1,fillColor:'#2563eb',fillOpacity:.1,clickable:false});
+  meMarker=new google.maps.Marker({map,position:pos||undefined,icon:meIcon(),zIndex:999});
+  map.addListener('dragstart',()=>{if(S.follow){S.follow=false;save();renderFollow()}});
+  if(pos&&S.follow){map.setZoom(17);map.panTo(pos);firstFix=false}}
  google.maps.event.trigger(map,'resize');renderMap()}
 function renderMap(){if(!map)return;markers.forEach(m=>m.setMap(null));markers=[];
  S.items.filter(i=>i.lat!=null).forEach(i=>{const o=orderOf(i.id),nm=(i.name||i.street||'?');
@@ -237,7 +259,7 @@ function renderMap(){if(!map)return;markers.forEach(m=>m.setMap(null));markers=[
  renderSheet()}
 function renderSheet(){const it=find(sel)||nextStop();
  const c=S.items.reduce((a,i)=>{a[i.status]++;return a},{pending:0,delivered:0,failed:0});
- let h=`<div>🟢 Bekleyen ${c.pending} &nbsp; ⚫ Teslim ${c.delivered} &nbsp; ⚪ Edilemedi ${c.failed}</div>`;
+ let h=`<div>🟢 Bekleyen ${c.pending} &nbsp; ⚫ Teslim ${c.delivered} &nbsp; ⚪ Edilemedi ${c.failed}</div><div class="a" id="dist"></div>`;
  if(S.dirty)h+='<div class="banner">Rota değişti. Çizgiyi yenilemek için "Yolu çiz"e basın.</div>';
  if(!it)h+='<div class="a">Kargo seçin veya rota oluşturun.</div>';
  else h+=`<div class="n">${sel?'':'Sıradaki: '}${esc(it.name||'(isim yok)')}</div><div class="a">${esc(addrOf(it))}</div>
@@ -245,7 +267,7 @@ function renderSheet(){const it=find(sel)||nextStop();
  <button class="btn x" data-a="failed" data-id="${it.id}">Edilemedi</button>
  <button class="btn" data-a="pending" data-id="${it.id}">Bekliyor</button>
  <button class="btn p" data-a="edit" data-id="${it.id}">Düzenle</button><button class="btn k" data-a="pin" data-id="${it.id}">Konumu seç</button><button class="btn r" data-a="del" data-id="${it.id}">Sil</button></div>`;
- $('#sheet').innerHTML=h}
+ $('#sheet').innerHTML=h;renderDist()}
 $('#sheet').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
 function act(id,a){if(a==='edit'){startEdit(id);return}
  if(a==='pin'){pinTarget=id;toast('Haritada bu adresin doğru yerine dokunun');document.querySelector('nav button[data-t="map"]').click();return}
@@ -330,9 +352,80 @@ $('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo=
 $('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false};sel=null;clearLines();save();renderAll()}};
 function renderAll(){$('#cnt').textContent='Eklenen: '+S.items.length+'/'+MAX;$('#bMode').textContent=S.mode==='auto'?'Otomatik':'Manuel';
  $('#bMode').className='btn '+(S.mode==='auto'?'g':'x');renderList();renderRecent();renderBanner();renderMap();renderSheet()}
+
+/* ---------- canlı takip düğmeleri ---------- */
+let wl=null;async function keepAwake(){try{if(navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&tab==='map')keepAwake()});
+function renderFollow(){const b=$('#bFollow');b.textContent='📍 Takip: '+(S.follow?'Açık':'Kapalı');b.className='btn '+(S.follow?'g':'x')}
+$('#bFollow').onclick=()=>{S.follow=!S.follow;save();renderFollow();if(S.follow&&map&&pos){map.setZoom(Math.max(map.getZoom(),16));map.panTo(pos)}};
+$('#bMore').onclick=()=>{const m=$('#more');m.style.display=m.style.display==='none'?'block':'none'};
+$('#bTrail').onclick=()=>{if(!ask('Gidilen yol izi ve kilometre sıfırlansın mı?'))return;S.trail=[];S.dist=0;if(trailLine)trailLine.setPath([]);save();renderDist()};
+const navUrl=i=>'https://www.google.com/maps/dir/?api=1&destination='+i.lat+','+i.lng+'&travelmode=driving&dir_action=navigate';
+const viewUrl=i=>'https://www.google.com/maps/search/?api=1&query='+i.lat+','+i.lng;
+function openExt(u){const w=window.open(u,'_blank');if(!w)location.href=u}
+$('#bNav').onclick=()=>{const n=find(sel)||nextStop();if(!n||n.lat==null)return toast('Sıradaki durak yok (önce rota oluşturun)');openExt(navUrl(n))};
+
+/* ---------- rota paylaşma ---------- */
+function segUrls(list){const out=[];const pend=list.filter(x=>!x.s);
+ for(let a=0;a<pend.length;a+=10){const seg=pend.slice(a,a+10),dest=seg[seg.length-1],way=seg.slice(0,-1);
+  let u='https://www.google.com/maps/dir/?api=1&travelmode=driving&destination='+dest.lat+','+dest.lng;
+  if(a>0){const o=pend[a-1];u+='&origin='+o.lat+','+o.lng}
+  if(way.length)u+='&waypoints='+encodeURIComponent(way.map(w=>w.lat+','+w.lng).join('|'));
+  out.push({from:list.indexOf(seg[0])+1,to:list.indexOf(dest)+1,u})}
+ return out}
+function routeList(){return S.route.map(find).filter(i=>i&&i.lat!=null&&i.inRoute!==false).map(i=>({n:i.name||'',a:addrOf(i),lat:+i.lat.toFixed(6),lng:+i.lng.toFixed(6),s:i.status==='delivered'?1:i.status==='failed'?2:0}))}
+const b64u=bytes=>{let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+function encList(list){let pl=0,pg=0;return list.map(x=>{const la=Math.round(x.lat*1e5),lg=Math.round(x.lng*1e5),r=[x.n,x.a,la-pl,lg-pg];pl=la;pg=lg;if(x.s)r.push(x.s);return r})}
+function decList(arr){let pl=0,pg=0;return arr.map(r=>{pl+=r[2];pg+=r[3];return {n:r[0],a:r[1],lat:pl/1e5,lng:pg/1e5,s:r[4]||0}})}
+async function packRoute(list){const raw=new TextEncoder().encode(JSON.stringify(encList(list)));
+ try{if(window.CompressionStream)return 'y'+b64u(new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()))}catch(e){}
+ return 'x'+b64u(raw)}
+async function unpackRoute(s){let b=s.slice(1).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
+ let bytes=Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+ if(s[0]==='y'||s[0]==='z')bytes=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+ return decList(JSON.parse(new TextDecoder().decode(bytes)))}
+const baseUrl=()=>location.origin+location.pathname.replace(/index\.html$/,'');
+async function doShare(text,title){try{if(navigator.share){await navigator.share({title,text});return}}catch(e){if(e&&e.name==='AbortError')return}
+ try{await navigator.clipboard.writeText(text);toast('Panoya kopyalandı, istediğiniz uygulamaya yapıştırın')}catch(e){prompt('Kopyalayın:',text)}}
+function closeOv(){$('#ov').classList.remove('on');$('#ov').innerHTML='';if(location.hash.startsWith('#r='))history.replaceState(null,'',location.pathname+location.search)}
+$('#bShare').onclick=()=>{const list=routeList();if(!list.length)return toast('Önce rota oluşturun');
+ const ov=$('#ov');ov.innerHTML=`<div class="n" style="font-size:18px">Rotayı paylaş (${list.length} durak)</div>
+ <div class="a">Gönderdiğiniz kişi listeyi açar, bir adrese dokununca Google Haritalar'da yol tarifi başlar. Uygulama yüklü olması gerekmez.</div>
+ <button class="btn big p" id="shLink" style="margin-top:10px">🔗 Liste bağlantısını gönder (önerilen)</button>
+ <button class="btn big" id="shText" style="margin-top:8px">📝 Metin olarak gönder (her adres ayrı bağlantı)</button>
+ <button class="btn big x" id="shClose" style="margin-top:8px">Kapat</button>`;ov.classList.add('on');
+ $('#shClose').onclick=closeOv;
+ $('#shLink').onclick=async()=>{const code=await packRoute(list),url=baseUrl()+'#r='+code;
+  await doShare('Kargo rotası – '+list.length+' durak ('+new Date().toLocaleDateString('tr-TR')+')\nListeyi açın, adrese dokununca Google Haritalar açılır:\n'+url,'Kargo rotası')};
+ $('#shText').onclick=async()=>{const lines=list.map((x,k)=>(k+1)+'. '+(x.n||'(isim yok)')+' – '+x.a+(x.s===1?' (teslim edildi)':'')+'\n'+navUrl(x));
+  const segs=segUrls(list).map(g=>'Duraklar '+g.from+'–'+g.to+': '+g.u);
+  await doShare('Kargo rotası – '+list.length+' durak\n\n'+lines.join('\n\n')+(segs.length?'\n\nGoogle Haritalar\'da sırayla:\n'+segs.join('\n'):''),'Kargo rotası')}};
+
+/* ---------- paylaşılan rotayı açma (alıcı tarafı) ---------- */
+async function showShared(){if(!location.hash.startsWith('#r='))return;let list;
+ try{list=await unpackRoute(location.hash.slice(3))}catch(e){toast('Paylaşılan rota açılamadı (bağlantı eksik kopyalanmış olabilir)');return}
+ const key='kargo-shared-'+location.hash.slice(3,43);let done={};try{done=JSON.parse(localStorage.getItem(key)||'{}')}catch(e){}
+ const segs=segUrls(list),ov=$('#ov');
+ const draw=()=>{ov.innerHTML=`<div class="n" style="font-size:18px">Paylaşılan kargo rotası (${list.length} durak)</div>
+ <div class="a">Bir adrese dokunun → Google Haritalar'da yol tarifi açılır. ✓ ile teslim edildi işaretleyin (yalnız bu telefonda saklanır).</div>
+ ${segs.length?'<div class="lab">Google Haritalar\'da sırayla başlat</div><div class="seg">'+segs.map(g=>`<a class="btn" href="${g.u}" target="_blank" rel="noopener">${g.from}–${g.to}</a>`).join('')+'</div>':''}
+ <div class="row"><button class="btn g" id="shImp">Bu rotayı uygulamama aktar</button><button class="btn x" id="shCl">Kapat</button></div>
+ ${list.map((x,k)=>{const d=done[k]||x.s===1;return `<div class="card ${d?'done':''}" data-k="${k}"><div class="dot" style="background:${d?'#000':x.s===2?'#9ca3af':'#16a34a'}"></div><div class="col"><div class="n">${k+1}. ${esc(x.n||'(isim yok)')}</div><div class="a">${esc(x.a)}</div></div><div class="bt"><button class="btn" data-go="${k}">Yol tarifi</button><button class="btn x" data-v="${k}">Haritada</button><button class="btn ${d?'k':'g'}" data-t="${k}">${d?'↺':'✓'}</button></div></div>`}).join('')}`;
+  $('#shCl').onclick=closeOv;
+  $('#shImp').onclick=()=>{if(!ask(list.length+' durak uygulamanıza eklensin ve rota olarak sıralansın mı? (Mevcut rota bunun yerine geçer)'))return;
+   const ids=list.map((x,k)=>{const id=Date.now()+''+k+Math.random().toString(36).slice(2,5),v=(x.n?x.n+', ':'')+x.a;
+    S.items.push({...parseEntry(v),raw:v,id,key:'M|'+norm(v)+'|'+id,area:S.area,lat:x.lat,lng:x.lng,geo:'ok',geoErr:'',status:(done[k]||x.s===1)?'delivered':x.s===2?'failed':'pending',inRoute:true,isNew:false});return id});
+   S.route=ids;S.dirty=true;save();closeOv();renderAll();document.querySelector('nav button[data-t="map"]').click();toast('Rota aktarıldı. Haritada "Yolu çiz" ile çizgiyi oluşturun.')}};
+ ov.onclick=e=>{const b=e.target.closest('button');let k;
+  if(b&&b.dataset.go!==undefined)k=+b.dataset.go;else if(b&&b.dataset.v!==undefined){openExt(viewUrl(list[+b.dataset.v]));return}
+  else if(b&&b.dataset.t!==undefined){const i=+b.dataset.t;done[i]=!done[i];try{localStorage.setItem(key,JSON.stringify(done))}catch(x){}draw();return}
+  else if(!b){const c=e.target.closest('.card');if(c)k=+c.dataset.k}
+  if(k!==undefined&&list[k])openExt(navUrl(list[k]))};
+ draw();ov.classList.add('on')}
+window.addEventListener('hashchange',showShared);
 document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dataset.t;
  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+tab));
- if(tab==='map'){try{await initMap()}catch(e){}}});
-renderAll();if(S.key)ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{});
+ if(tab==='map'){keepAwake();try{await initMap()}catch(e){}}});
+renderAll();renderFollow();showShared();if(S.key)ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{});
 </script></body></html>
