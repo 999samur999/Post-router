@@ -1,0 +1,132 @@
+name: APK oluştur
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Java kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle kur
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Android proje dosyalarını oluştur
+        run: |
+          SITE="https://${{ github.repository_owner }}.github.io/${GITHUB_REPOSITORY#*/}/"
+          HOST="${{ github.repository_owner }}.github.io"
+          mkdir -p twa/app/src/main/res/values twa/app/src/main/res/drawable twa/app/src/main/res/mipmap-anydpi-v26
+          cd twa
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+          rootProject.name = 'KargoRota'
+          include ':app'
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.5.2' apply false }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          android.useAndroidX=true
+          org.gradle.jvmargs=-Xmx2g
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.kargorota.app'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'com.kargorota.app'
+                  minSdk 26
+                  targetSdk 34
+                  versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+                  versionName '1.0.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          dependencies { implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0' }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:label="Kargo Rota" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:allowBackup="true">
+              <meta-data android:name="asset_statements" android:resource="@string/asset_statements"/>
+              <activity android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+                        android:exported="true" android:label="Kargo Rota"
+                        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+                <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL" android:value="${SITE}"/>
+                <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR" android:resource="@color/primary"/>
+                <meta-data android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR" android:resource="@color/primary"/>
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/strings.xml <<EOF
+          <resources>
+            <string name="asset_statements">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://${HOST}\"}}]</string>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/values/colors.xml <<'EOF'
+          <resources><color name="primary">#111827</color></resources>
+          EOF
+
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@color/primary"/>
+            <foreground android:drawable="@drawable/ic_fg"/>
+          </adaptive-icon>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_fg.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#FFFFFF" android:pathData="M54,32 L74,43 L74,65 L54,76 L34,65 L34,43 Z"/>
+            <path android:fillColor="#16A34A" android:pathData="M54,32 L74,43 L54,54 L34,43 Z"/>
+            <path android:fillColor="#D1D5DB" android:pathData="M54,54 L74,43 L74,65 L54,76 Z"/>
+          </vector>
+          EOF
+
+          echo "Uygulamanın açacağı adres: $SITE"
+
+      - name: APK derle
+        working-directory: twa
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: APK'yı Releases bölümüne yükle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp twa/app/build/outputs/apk/debug/app-debug.apk KargoRota.apk
+          gh release create "apk-${{ github.run_number }}" KargoRota.apk \
+            --repo "${{ github.repository }}" \
+            --title "Kargo Rota APK #${{ github.run_number }}" \
+            --notes "Telefona indirip kurun. Önceki bir sürüm yüklüyse önce onu kaldırın."
