@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111827"><title>Kargo Rota</title>
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><title>Kargo Rota</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,sans-serif;background:#fff;overscroll-behavior:none}
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
@@ -29,6 +29,7 @@ nav button{flex:1;padding:14px 4px;background:none;border:0;color:#fff;font-weig
 </style></head><body><div id="app">
 
 <section id="p-add" class="pane on">
+ <button class="btn big g" id="bInstall" style="display:none;margin-bottom:8px">📲 Uygulamayı telefona yükle</button>
  <div class="lab">Çalışma bölgesi (bir kez yazın)</div>
  <input type="text" id="area" placeholder="Örn: Etiler Mahallesi, Muratpaşa, Antalya">
  <div class="help"><b>Söyleme sırası:</b> 1) kişinin adı soyadı, 2) sokak (numara veya ad), 3) apartman (bina) numarası.<br>
@@ -427,5 +428,9 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dat
  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+tab));
  if(tab==='map'){keepAwake();try{await initMap()}catch(e){}}});
+let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#bInstall').style.display='block'});
+$('#bInstall').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(e){}dip=null;$('#bInstall').style.display='none'};
+window.addEventListener('appinstalled',()=>{$('#bInstall').style.display='none';toast('Yüklendi: ana ekrandaki "Kargo Rota" simgesinden açın')});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 renderAll();renderFollow();showShared();if(S.key)ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{});
 </script></body></html>
