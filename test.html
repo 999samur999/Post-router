@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Adres testi</title>
+<style>
+:root{--bg:#f6f7f5;--card:#fff;--fg:#14211a;--mut:#5b6b61;--line:#dfe5e0;--g:#166534;--h:#1d4ed8;--ok:#16a34a;--mid:#d97706;--bad:#dc2626}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,sans-serif}
+header{padding:14px 16px 6px}
+h1{font-size:19px;margin:0}
+.leg{display:flex;gap:14px;font-size:13px;color:var(--mut);margin-top:4px}
+.leg b{display:inline-block;width:18px;height:18px;border-radius:50%;color:#fff;font-size:11px;text-align:center;line-height:18px;margin-right:4px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:10px 16px;padding:12px}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:4px}
+input,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--fg)}
+textarea{height:120px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px;width:100%;margin-top:8px;background:var(--g);color:#fff}
+button.sec{background:#e8efe9;color:var(--g)}
+button:disabled{opacity:.5}
+.row2{display:flex;gap:8px}.row2 button{flex:1}
+.note{font-size:13px;color:var(--mut);margin:6px 0 0}
+summary{font-weight:600;color:var(--g);padding:6px 0}
+#map{height:42vh;margin:10px 16px;border-radius:12px;border:1px solid var(--line);display:none}
+#sum{margin:10px 16px;display:none}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kp div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}
+.kp strong{display:block;font-size:20px}
+.kp span{font-size:12px;color:var(--mut)}
+#prog{font-size:13px;color:var(--mut);margin:6px 16px}
+ul{list-style:none;margin:0 16px 40px;padding:0}
+li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+li .t{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+li .d{white-space:nowrap}
+.c-ok{color:var(--ok)}.c-mid{color:var(--mid)}.c-bad{color:var(--bad)}
+li .a{font-size:13px;color:var(--mut);margin-top:3px}
+li .lv{font-size:13px;margin-top:4px}
+li .vb{display:flex;gap:6px;margin-top:6px}
+li .vb button{margin:0;padding:8px 4px;font-size:13px;background:#eef2ef;color:var(--fg)}
+li .vb button.on{background:var(--g);color:#fff}
+</style></head><body>
+<header>
+<h1>Adres testi: Google ve HERE</h1>
+<div class="leg"><span><b style="background:var(--g)">G</b>Google</span><span><b style="background:var(--h)">H</b>HERE</span></div>
+</header>
+
+<div class="box">
+<label for="hk">HERE API anahtarı</label>
+<input id="hk" autocomplete="off" placeholder="HERE'den kopyaladığınız anahtarı yapıştırın">
+<p class="note">Anahtar yalnızca bu telefonda saklanır.</p>
+<div id="gkRow" style="margin-top:10px;display:none">
+<label for="gk">Google API anahtarı</label>
+<input id="gk" autocomplete="off" placeholder="Uygulamada bulunamadı, buraya yapıştırın">
+</div>
+</div>
+
+<div class="box">
+<button id="bApp">Uygulamadaki adreslerle test et</button>
+<p class="note" id="appInfo"></p>
+<details style="margin-top:8px"><summary>Ya da adresleri yapıştırın</summary>
+<label for="ta">Her satıra bir adres</label>
+<textarea id="ta" placeholder="Atatürk Cd. No:12 Merkez Mahallesi"></textarea>
+<label for="area" style="margin-top:8px">Bölge (ilçe, il)</label>
+<input id="area" placeholder="Kadıköy İstanbul">
+<button id="bPaste">Yapıştırılanları test et</button>
+</details>
+</div>
+
+<div id="prog"></div>
+<div id="sum"><div class="kp">
+<div><strong id="kSame">0</strong><span>aynı yer (≤30 m)</span></div>
+<div><strong id="kNear">0</strong><span>yakın (≤150 m)</span></div>
+<div><strong id="kFar">0</strong><span>farklı (&gt;150 m)</span></div>
+<div><strong id="kHb">0</strong><span>HERE bina buldu</span></div>
+<div><strong id="kGw">0</strong><span>Google doğru dediğiniz</span></div>
+<div><strong id="kHw">0</strong><span>HERE doğru dediğiniz</span></div>
+</div>
+<div class="row2"><button class="sec" id="bCopy">Sonuçları kopyala</button></div>
+</div>
+<div id="map"></div>
+<ul id="list"></ul>
+
+<script>
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+// Uygulamanın kayıtlı verisini oku (v13: kargo-sesli-v1, v14: kargo-u-*)
+let app=null;try{app=JSON.parse(ls.get('kargo-sesli-v1')||'null')}catch(e){}
+let appItems=(app&&app.items)||[];
+if(!appItems.length){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('kargo-u-')===0){const s=JSON.parse(localStorage.getItem(k)||'{}');if(s.items&&s.items.length){appItems=s.items;app=Object.assign({},s,{key:app&&app.key});break}}}}catch(e){}}
+appItems=appItems.filter(i=>i.lat&&i.lng);
+const gKey=()=>(app&&app.key)||$('#gk').value.trim()||ls.get('kargo-test-gkey')||'';
+
+$('#hk').value=ls.get('kargo-here-key')||'';
+$('#hk').onchange=()=>ls.set('kargo-here-key',$('#hk').value.trim());
+if(!(app&&app.key)){$('#gkRow').style.display='block';$('#gk').value=ls.get('kargo-test-gkey')||'';$('#gk').onchange=()=>ls.set('kargo-test-gkey',$('#gk').value.trim())}
+$('#area').value=(app&&app.area)||'';
+$('#appInfo').textContent=appItems.length?appItems.length+' adres bulundu. Google konumları zaten kayıtlı, Google için yeni ücret oluşmaz.':'Uygulamada konumu bulunmuş adres yok. Aşağıya adres yapıştırabilirsiniz.';
+$('#bApp').disabled=!appItems.length;
+
+// Mesafe (metre)
+function dist(a,b){const R=6371000,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng);
+ const h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return Math.round(2*R*Math.asin(Math.sqrt(h)))}
+
+// Bölgenin merkezi: başlangıç noktası ya da Google noktalarının ortancası
+function center(pts){if(app&&app.start)return app.start;if(!pts.length)return null;
+ const m=a=>{a=a.slice().sort((x,y)=>x-y);return a[Math.floor(a.length/2)]};return {lat:m(pts.map(p=>p.lat)),lng:m(pts.map(p=>p.lng))}}
+
+const HLV={houseNumber:'bina',street:'sokak',intersection:'kavşak',addressBlock:'ada',locality:'mahalle/ilçe',administrativeArea:'il',place:'mekân'};
+async function here(q,c){const key=$('#hk').value.trim();
+ let u='https://geocode.search.hereapi.com/v1/geocode?q='+encodeURIComponent(q)+'&in=countryCode:TUR&lang=tr-TR&limit=1&apiKey='+encodeURIComponent(key);
+ if(c)u+='&at='+c.lat+','+c.lng;
+ for(let n=0;n<3;n++){const r=await fetch(u);
+  if(r.status===429){await sleep(1200);continue}
+  if(r.status===401||r.status===403)throw new Error('HERE anahtarı kabul edilmedi. Anahtarı kontrol edin.');
+  const j=await r.json();const it=j.items&&j.items[0];if(!it)return null;
+  let lv=HLV[it.resultType]||it.resultType;if(it.resultType==='houseNumber'&&it.houseNumberType&&it.houseNumberType!=='PA')lv='bina (tahmini)';
+  return {lat:it.position.lat,lng:it.position.lng,lv,exact:it.resultType==='houseNumber',label:it.address&&it.address.label||''}}
+ throw new Error('HERE çok fazla istek dedi, biraz sonra tekrar deneyin.')}
+
+async function google(q,c){const key=gKey();if(!key)return null;
+ let u='https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(q)+'&components=country:TR&language=tr&region=tr&key='+encodeURIComponent(key);
+ if(c){const d=0.2;u+='&bounds='+(c.lat-d)+','+(c.lng-d)+'|'+(c.lat+d)+','+(c.lng+d)}
+ const j=await(await fetch(u)).json();
+ if(j.status==='REQUEST_DENIED')throw new Error('Google reddetti: '+(j.error_message||''));
+ const g=j.results&&j.results[0];if(!g)return null;
+ const ty=g.types||[],b=ty.some(x=>['street_address','premise','subpremise'].includes(x))||g.geometry.location_type==='ROOFTOP';
+ return {lat:g.geometry.location.lat,lng:g.geometry.location.lng,lv:b?'bina':'yaklaşık',label:g.formatted_address}}
+
+function qOf(it){if(it.street){const no=it.no?' '+it.no:'',mh=it.mahalle?it.mahalle+' Mahallesi':'';return [it.street+no,mh,it.area].filter(Boolean).join(', ')}
+ return [it.raw,it.area].filter(Boolean).join(', ')}
+
+// Harita
+let map=null,ov=[],mapsP=null;
+function loadMaps(){if(mapsP)return mapsP;const key=gKey();if(!key)return Promise.reject();
+ mapsP=new Promise((ok,no)=>{window.__gm=ok;const s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&language=tr&callback=__gm';s.onerror=no;document.head.appendChild(s)});return mapsP}
+function pin(p,txt,col){return new google.maps.Marker({map,position:p,label:{text:txt,color:'#fff',fontSize:'11px',fontWeight:'700'},
+ icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:col,fillOpacity:1,strokeColor:'#fff',strokeWeight:2}})}
+function drawMap(){if(!map)return;ov.forEach(o=>o.setMap(null));ov=[];const b=new google.maps.LatLngBounds();
+ R.forEach(r=>{if(r.g){ov.push(pin(r.g,'G','#166534'));b.extend(r.g)}if(r.h){ov.push(pin(r.h,'H','#1d4ed8'));b.extend(r.h)}
+  if(r.g&&r.h)ov.push(new google.maps.Polyline({map,path:[r.g,r.h],strokeColor:r.d>150?'#dc2626':r.d>30?'#d97706':'#16a34a',strokeWeight:3}))});
+ if(!b.isEmpty())map.fitBounds(b)}
+function focus(r){if(!map)return;const b=new google.maps.LatLngBounds();[r.g,r.h].filter(Boolean).forEach(p=>b.extend(p));
+ map.fitBounds(b);google.maps.event.addListenerOnce(map,'idle',()=>{if(map.getZoom()>18)map.setZoom(18)});$('#map').scrollIntoView({behavior:'smooth'})}
+
+// Sonuçlar
+let R=[];const V=JSON.parse(ls.get('kargo-test-verdict')||'{}');
+function cls(d){return d==null?'':d<=30?'c-ok':d<=150?'c-mid':'c-bad'}
+function render(){const L=$('#list');L.innerHTML='';
+ R.forEach((r,i)=>{const li=document.createElement('li');const dTxt=r.d==null?'—':r.d+' m';
+  li.innerHTML='<div class="t"><span></span><span class="d '+cls(r.d)+'">'+dTxt+'</span></div><div class="a"></div><div class="lv"></div>'+
+   (r.d!=null&&r.d>30?'<div class="vb"><button data-v="g">Google doğru</button><button data-v="h">HERE doğru</button><button data-v="b">İkisi de yanlış</button></div>':'');
+  li.querySelector('.t span').textContent=r.name;li.querySelector('.a').textContent=r.q;
+  li.querySelector('.lv').textContent='Google: '+(r.g?r.g.lv:'bulamadı')+'  ·  HERE: '+(r.h?r.h.lv:(r.err||'bulamadı'));
+  li.querySelectorAll('.vb button').forEach(b=>{if(V[r.q]===b.dataset.v)b.classList.add('on');
+   b.onclick=e=>{e.stopPropagation();V[r.q]=V[r.q]===b.dataset.v?'':b.dataset.v;ls.set('kargo-test-verdict',JSON.stringify(V));render()}});
+  li.onclick=()=>focus(r);L.appendChild(li)});
+ const both=R.filter(r=>r.d!=null);
+ $('#kSame').textContent=both.filter(r=>r.d<=30).length;$('#kNear').textContent=both.filter(r=>r.d>30&&r.d<=150).length;
+ $('#kFar').textContent=both.filter(r=>r.d>150).length;$('#kHb').textContent=R.filter(r=>r.h&&r.h.exact).length+'/'+R.length;
+ $('#kGw').textContent=R.filter(r=>V[r.q]==='g').length;$('#kHw').textContent=R.filter(r=>V[r.q]==='h').length;
+ $('#sum').style.display=R.length?'block':'none'}
+
+async function run(list,needGoogle){
+ if(!$('#hk').value.trim()){alert('Önce HERE API anahtarını yapıştırın.');return}
+ ls.set('kargo-here-key',$('#hk').value.trim());
+ $('#bApp').disabled=$('#bPaste').disabled=true;R=[];render();
+ loadMaps().then(()=>{$('#map').style.display='block';map=map||new google.maps.Map($('#map'),{center:{lat:39,lng:35},zoom:6,mapTypeControl:false,streetViewControl:false,fullscreenControl:false});drawMap()})
+  .catch(()=>{$('#prog').textContent='Harita açılamadı (Google anahtarı yok). Sonuçlar yine de listelenecek.'});
+ const c=center(list.filter(x=>x.g).map(x=>x.g));
+ try{for(let i=0;i<list.length;i++){const x=list[i];$('#prog').textContent='Test ediliyor: '+(i+1)+' / '+list.length;
+   let g=x.g;if(needGoogle){try{g=await google(x.q,c)}catch(e){$('#prog').textContent=e.message;needGoogle=false}}
+   let h=null,err='';try{h=await here(x.q,c||g)}catch(e){if(/anahtar|çok fazla/.test(e.message))throw e;err='hata'}
+   R.push({name:x.name,q:x.q,g,h,err,d:g&&h?dist(g,h):null});render();drawMap();await sleep(220)}
+  $('#prog').textContent=list.length+' adres test edildi. Bir satıra dokunursanız iki nokta haritada gösterilir.'}
+ catch(e){$('#prog').textContent=e.message}
+ $('#bApp').disabled=!appItems.length;$('#bPaste').disabled=false}
+
+$('#bApp').onclick=()=>run(appItems.map(it=>({name:it.name||it.raw||'Adres',q:qOf(it),
+ g:{lat:it.lat,lng:it.lng,lv:it.geo==='ok'?'bina':'yaklaşık'}})),false);
+$('#bPaste').onclick=()=>{const area=$('#area').value.trim();
+ const lines=$('#ta').value.split('\n').map(s=>s.trim()).filter(Boolean);if(!lines.length)return;
+ run(lines.map(s=>({name:s.slice(0,40),q:[s,area].filter(Boolean).join(', '),g:null})),true)};
+
+$('#bCopy').onclick=async()=>{const both=R.filter(r=>r.d!=null);
+ const t=['Adres testi: '+R.length+' adres','Aynı yer (≤30 m): '+both.filter(r=>r.d<=30).length,'Yakın (≤150 m): '+both.filter(r=>r.d>30&&r.d<=150).length,
+  'Farklı (>150 m): '+both.filter(r=>r.d>150).length,'HERE bina düzeyinde: '+R.filter(r=>r.h&&r.h.exact).length,
+  'Google bina düzeyinde: '+R.filter(r=>r.g&&r.g.lv==='bina').length,
+  'Google doğru: '+R.filter(r=>V[r.q]==='g').length+', HERE doğru: '+R.filter(r=>V[r.q]==='h').length+', ikisi de yanlış: '+R.filter(r=>V[r.q]==='b').length,'',
+  ...R.map(r=>(r.d==null?'—':r.d+' m')+' | G:'+(r.g?r.g.lv:'yok')+' | H:'+(r.h?r.h.lv:'yok')+(V[r.q]?' | doğru: '+({g:'Google',h:'HERE',b:'hiçbiri'})[V[r.q]]:''))].join('\n');
+ try{await navigator.clipboard.writeText(t);$('#bCopy').textContent='Kopyalandı'}catch(e){prompt('Kopyalayın:',t)}};
+</script>
+</body></html>
