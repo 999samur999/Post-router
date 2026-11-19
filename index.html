@@ -155,6 +155,33 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 #ov.on{display:block}#ov .card{cursor:pointer}.seg{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .seg .btn{min-height:40px;text-decoration:none}
 .done .n{text-decoration:line-through;color:var(--muted)}
+/* giriş */
+#login{position:fixed;inset:0;z-index:40;background:var(--bg);display:none;flex-direction:column;justify-content:center;padding:24px max(20px,env(safe-area-inset-left,0px))}
+#login.on{display:flex}
+#login .box{max-width:380px;width:100%;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px 18px}
+#login h1{font:700 30px/1.1 var(--fc);margin:0 0 4px}
+#login p{margin:0 0 16px;color:var(--muted);font-size:14px}
+#login label{display:block;font-size:14px;color:var(--muted);margin-top:10px}
+#login input{width:100%;height:50px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font-size:17px;background:var(--bg);margin-top:4px}
+#login .btn{margin-top:16px;width:100%;min-height:52px;font-size:17px}
+#lerr{color:var(--danger);font-size:14px;min-height:20px;margin-top:10px}
+.mark{width:48px;height:48px;border-radius:14px;background:var(--ink);display:grid;place-items:center;margin-bottom:14px}
+.mark svg{width:30px;height:30px}
+/* yönetim */
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 16px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.kpi b{display:block;font:700 24px/1.1 var(--fc);font-variant-numeric:tabular-nums}.kpi span{font-size:13px;color:var(--muted)}
+.ust{width:10px;height:10px;border-radius:50%;flex:none;background:var(--grey)}
+.ust.on{background:var(--green);box-shadow:0 0 0 3px var(--green-weak)}.ust.off{background:var(--danger)}
+.meta{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.errl{font-size:12.5px;color:var(--danger);margin-top:3px;word-break:break-word}
+.chip{display:inline-block;font:600 12px var(--f);padding:1px 7px;border-radius:6px;background:var(--bg);color:var(--muted);margin-left:6px;vertical-align:1px}
+.chip.adm{background:var(--ink);color:#fff}.chip.dis{background:var(--danger-weak);color:var(--danger)}
+#act .frm{padding:6px 18px 4px}#act .frm label{display:block;font-size:14px;color:var(--muted);margin-top:10px}
+#act .frm input{width:100%;height:48px;border:1px solid var(--line);border-radius:12px;padding:0 12px;font-size:16px;background:var(--bg);margin-top:4px}
+#notice{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:35;background:var(--ink);color:#fff;border-radius:14px;padding:12px 14px;display:none;box-shadow:0 8px 24px rgba(28,36,48,.35)}
+#notice.on{display:block}#notice b{display:block;font:700 15px var(--fc);color:var(--hivis);margin-bottom:2px}
+#notice button{margin-top:10px;min-height:38px}
 #toast{position:fixed;left:16px;right:16px;bottom:88px;z-index:30;background:var(--ink);color:#fff;padding:12px 14px;border-radius:12px;display:none;font-size:14.5px;box-shadow:0 6px 20px rgba(28,36,48,.3)}
 </style></head><body><div id="app">
 
@@ -206,11 +233,10 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 
 <section id="p-set" class="pane">
  <header class="hd"><h1>Ayarlar</h1></header>
- <div class="group"><h2>Google Haritalar</h2>
-  <label class="fld" for="key">API anahtarı</label>
-  <div class="keyrow"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…"><button class="btn ghost" id="bKeyShow">Göster</button></div>
-  <div class="row"><button class="btn primary grow" id="bKey">Kaydet</button><button class="btn ghost grow" id="bTest">Bağlantıyı sına</button></div>
+ <div class="group"><h2>Hesap</h2>
+  <div id="acct" class="meta"></div>
   <button class="btn ghost block" id="bRetry">Konumu bulunamayanları yeniden ara</button>
+  <button class="btn ghost block" id="bLogout">Çıkış yap</button>
  </div>
  <div class="group"><h2>Teslimat</h2>
   <label class="switch-row" style="padding-top:4px"><span>Otomatik teslim<small>Adrese 30 m yaklaşıp 15 sn kalınca teslim edildi sayılır</small></span><input type="checkbox" id="bMode" class="sw"></label>
@@ -221,6 +247,16 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
   <button class="btn ghost block" id="bTrail">Gidilen yol izini sıfırla</button>
   <button class="btn danger block" id="bClear">Tüm adresleri ve rotayı sil</button>
  </div>
+ <p class="empty" id="ver"></p>
+</section>
+
+<section id="p-adm" class="pane">
+ <header class="hd"><h1>Yönetim</h1><span class="count" id="acnt"></span></header>
+ <div class="kpis" id="kpis"></div>
+ <div class="row" style="margin:12px 16px 0"><button class="btn primary grow" id="bAddUser">Kullanıcı ekle</button><button class="btn ghost" id="bARefresh">Yenile</button></div>
+ <h2 class="sec">Kullanıcılar</h2>
+ <div id="ulist" class="rows"></div>
+ <p class="hint" style="margin-top:10px">Yeşil nokta: son 5 dakikada açık. Kırmızı: hesap kapalı. Bir kullanıcıya dokunarak mesaj gönderebilir, şifresini sıfırlayabilir, sınırlarını değiştirebilir veya hesabını kapatabilirsiniz.</p>
 </section>
 
 <nav>
@@ -228,11 +264,22 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
  <button data-t="map"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>Harita</button>
  <button data-t="list"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Liste</button>
  <button data-t="set"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Ayarlar</button>
+ <button data-t="adm" id="tabAdm" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>Yönetim</button>
 </nav>
-</div><div id="ov"></div><div id="act"></div><div id="toast" role="status"></div>
+</div><div id="ov"></div><div id="act"></div>
+<div id="login" role="dialog" aria-label="Giriş"><div class="box">
+ <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4Z" fill="#16A34A" stroke="#16A34A"/><path d="M3 7v10l9 4V11L3 7Z" fill="#fff" stroke="#fff"/><path d="M21 7v10l-9 4V11l9-4Z" fill="#D1D5DB" stroke="#D1D5DB"/></svg></div>
+ <h1>Kargo Rota</h1><p>Yöneticinizin verdiği kullanıcı adı ve şifreyle giriş yapın.</p>
+ <div id="srvRow" style="display:none"><label for="lsrv">Sunucu adresi</label><input id="lsrv" type="url" placeholder="https://kargo-rota.….workers.dev" autocomplete="off"></div>
+ <label for="luser">Kullanıcı adı</label><input id="luser" autocomplete="username" autocapitalize="none" spellcheck="false">
+ <label for="lpass">Şifre</label><input id="lpass" type="password" autocomplete="current-password">
+ <button class="btn primary" id="bLogin">Giriş yap</button><div id="lerr" role="alert"></div>
+</div></div>
+<div id="notice" role="alert"></div>
+<div id="toast" role="status"></div>
 <script>
 const IC={"check": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 5 5L20 7\"/></svg>", "undo": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>", "more": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/></svg>", "edit": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20h4L19 9l-4-4L4 16v4Z\"/></svg>", "x": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6 6 18\"/></svg>", "pin": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>"};
-const MAX=300,ARRIVE_M=30,DWELL_MS=15000,LS='kargo-sesli-v1';
+const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v14';let LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const TRM={ç:'C',ğ:'G',ı:'I',ö:'O',ş:'S',ü:'U',Ç:'C',Ğ:'G',İ:'I',Ö:'O',Ş:'S',Ü:'U'};
@@ -271,7 +318,8 @@ function parseEntry(text){
 }
 
 /* ---------- durum ---------- */
-let S={items:[],mode:'manual',start:null,route:[],key:'',area:'',auto:true,dirty:false,trail:[],dist:0,follow:true}, tab='add', sel=null, pos=null, pickStart=false;
+const DEFS=()=>({items:[],mode:'manual',start:null,route:[],area:'',auto:true,dirty:false,trail:[],dist:0,follow:true,line:null});
+let S=DEFS(), tab='add', sel=null, pos=null, pickStart=false;
 try{Object.assign(S,JSON.parse(localStorage.getItem(LS)||'{}'))}catch(e){}
 S.trail=S.trail||[];S.dist=S.dist||0;if(S.follow===undefined)S.follow=true;
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
@@ -313,38 +361,23 @@ function insertCheapest(id){const it=find(id),origin=pos||S.start;
 let mapsP=null,map=null,markers=[],polys=[],meMarker=null,startMarker=null,trailLine=null,accCircle=null,heading=null,firstFix=true,trailDirty=0;
 window.gm_authFailure=()=>toast('Google API anahtarı geçersiz veya API etkin değil');
 function ensureMaps(){if(window.google&&google.maps&&google.maps.Map)return Promise.resolve();
- if(!S.key){toast('Önce Liste sekmesinde Google API anahtarını girin');return Promise.reject()}
+ if(!AUTH.mapsKey){toast('Harita anahtarı sunucuda tanımlı değil (MAPS_BROWSER_KEY)');return Promise.reject()}
  if(mapsP)return mapsP;
  mapsP=new Promise((res,rej)=>{const s=document.createElement('script');
-  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(S.key)+'&language=tr';
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(AUTH.mapsKey)+'&language=tr';
   s.onload=res;s.onerror=()=>{mapsP=null;toast('Google Haritalar yüklenemedi (internet?)');rej()};document.head.append(s)});
  return mapsP}
 let gq=Promise.resolve(),gDenied=false;
 const queryOf=i=>i.street?[i.street,i.no?'No:'+i.no:'',i.mahalle?i.mahalle+' Mah':'',i.area||''].filter(Boolean).join(' '):[i.raw,i.area||''].join(' ');
 const fixStreet=s=>s?s.replace(/^(\d+)\s*(SOKAK|SOKAGI|SK|SOK)\b/i,'$1. Sokak'):s;
-function gcall(q){const o=pos||S.start;let u='https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(q)+'&components=country:TR&language=tr&region=tr&key='+encodeURIComponent(S.key);
- if(o){const d=0.2;u+='&bounds='+(o.lat-d)+','+(o.lng-d)+'|'+(o.lat+d)+','+(o.lng+d)}
- return fetch(u).then(r=>r.json())}
 function geocodeText(it){return gq=gq.then(async()=>{
- if(!S.key)return {geo:'pending',geoErr:'API anahtarı yok'};
- if(gDenied)return {geo:'pending',geoErr:gDenied};
  const st=fixStreet(it.street),mh=it.mahalle?it.mahalle+' Mahallesi':'',ar=it.area||'';
  const tries=it.street?[[st,it.no?'No:'+it.no:'',mh,ar],[st,it.no||'',mh,ar],[st,mh,ar]].map(x=>x.filter(Boolean).join(' ')):[[it.raw,ar].join(' ')];
- let best=null;
- for(let k=0;k<tries.length;k++){await sleep(150);
-  let j;for(let n=0;n<3;n++){try{j=await gcall(tries[k])}catch(e){return {geo:'pending',geoErr:'İnternet/Google erişimi yok'}}
-   if(j.status==='OVER_QUERY_LIMIT'){await sleep(1500);continue}break}
-  if(j.status==='REQUEST_DENIED'||j.status==='INVALID_REQUEST'){gDenied='Google reddetti: '+(j.error_message||j.status);toast(gDenied);return {geo:'none',geoErr:gDenied}}
-  if(j.status!=='OK'||!j.results.length)continue;
-  const g=j.results[0],l=g.geometry.location,ty=g.types||[];
-  const street=ty.some(x=>['street_address','premise','subpremise'].includes(x))||['ROOFTOP','RANGE_INTERPOLATED'].includes(g.geometry.location_type);
-  const exact=k===0&&it.no&&!g.partial_match&&street;
-  const r={lat:l.lat,lng:l.lng,geo:exact?'ok':'approx',geoErr:'',found:g.formatted_address};
-  if(exact)return r;
-  if(!best||(k<2&&best.k>=2)){best={...r,k}}
- }
- if(best){delete best.k;return best}
- return {geo:'none',geoErr:'Google adresi bulamadı'}}).catch(()=>({geo:'pending'}))}
+ const o=pos||S.start;let bounds='';if(o){const d=0.2;bounds=(o.lat-d)+','+(o.lng-d)+'|'+(o.lat+d)+','+(o.lng+d)}
+ try{const j=await api('/api/geocode',{tries,hasNo:!!it.no,bounds});
+  if(j.geo==='none')return {geo:'none',geoErr:j.err||'Google adresi bulamadı'};
+  return {geo:j.geo,lat:j.lat,lng:j.lng,geoErr:'',found:j.found||''}}
+ catch(e){return {geo:'pending',geoErr:e.message||'Sunucuya ulaşılamadı'}}}).catch(()=>({geo:'pending'}))}
 async function geoItem(it){const g=await geocodeText(it);
  if(g.geo==='pending'&&!g.geoErr)return;upd(it.id,{geo:g.geo,lat:g.lat,lng:g.lng,geoErr:g.geoErr,found:g.found||''})}
 function upd(id,p){const i=find(id);if(!i)return;Object.assign(i,p);save();renderAll()}
@@ -421,6 +454,7 @@ if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{onPos(p);
 async function initMap(){await ensureMaps();
  if(!map){map=new google.maps.Map($('#map'),{center:pos||{lat:36.8969,lng:30.7133},zoom:13,streetViewControl:false,mapTypeControl:false,fullscreenControl:false,cameraControl:false,clickableIcons:false,styles:[{featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]}]});
   map.addListener('click',e=>{if(pinTarget){upd(pinTarget,{lat:e.latLng.lat(),lng:e.latLng.lng(),geo:'ok',geoErr:''});pinTarget=null;toast('Konum kaydedildi')}else if(pickStart){S.start={lat:e.latLng.lat(),lng:e.latLng.lng()};pickStart=false;save();renderMap()}else{sel=null;renderSheet()}});
+  setTimeout(restoreLine,0);
   trailLine=new google.maps.Polyline({map,path:S.trail.map(x=>({lat:x[0],lng:x[1]})),strokeColor:'#2563eb',strokeOpacity:.8,strokeWeight:5,zIndex:3});
   accCircle=new google.maps.Circle({map,center:pos||{lat:0,lng:0},radius:0,strokeColor:'#2563eb',strokeOpacity:.3,strokeWeight:1,fillColor:'#2563eb',fillOpacity:.1,clickable:false});
   meMarker=new google.maps.Marker({map,position:pos||undefined,icon:meIcon(),zIndex:999});
@@ -487,30 +521,25 @@ $('#bStart').onclick=()=>{pickStart=true;toast('Haritada başlangıç noktasına
 $('#bMe').onclick=()=>{S.start=null;save();renderMap()};
 $('#bMode').onchange=()=>{S.mode=$('#bMode').checked?'auto':'manual';save();toast(S.mode==='auto'?'Otomatik teslim açık':'Otomatik teslim kapalı')};
 $('#voiceSw').onchange=()=>{S.voice=$('#voiceSw').checked;save()};
-$('#bKeyShow').onclick=()=>{const k=$('#key'),s=k.type==='password';k.type=s?'text':'password';$('#bKeyShow').textContent=s?'Gizle':'Göster'};
+
 
 /* ---------- rota ---------- */
-async function legPath(o,d,mid){
- try{const {Route}=await google.maps.importLibrary('routes');
-  const r=await Route.computeRoutes({origin:{lat:o.lat,lng:o.lng},destination:{lat:d.lat,lng:d.lng},
-   intermediates:mid.map(p=>({lat:p.lat,lng:p.lng})),travelMode:'DRIVING',fields:['path']});
-  if(r.routes&&r.routes[0]&&r.routes[0].path)return r.routes[0].path.map(q=>({lat:typeof q.lat==='function'?q.lat():q.lat,lng:typeof q.lng==='function'?q.lng():q.lng}));
- }catch(e){}
- try{if(google.maps.DirectionsService){const r=await new Promise(res=>new google.maps.DirectionsService().route({origin:o,destination:d,
-   waypoints:mid.map(p=>({location:{lat:p.lat,lng:p.lng},stopover:true})),travelMode:'DRIVING'},(rs,st)=>res({rs,st})));
-  if(r.st==='OK')return r.rs.routes[0].overview_path.map(q=>({lat:q.lat(),lng:q.lng()}))}}catch(e){}
- return null}
+async function legPath(o,d,mid){try{const legs=await navRouteREST(o,[...mid,d]);return [].concat(...legs.map(l=>[].concat(...l.steps.map(s=>s.path))))}catch(e){lastRouteErr=e.message;return null}}
+let lastRouteErr='';
+function encPoly(pts){let o='',pl=0,pg=0;for(const p of pts){const la=Math.round(p.lat*1e5),lg=Math.round(p.lng*1e5);for(let v of [la-pl,lg-pg]){v=v<0?~(v<<1):v<<1;while(v>=0x20){o+=String.fromCharCode((0x20|(v&31))+63);v>>=5}o+=String.fromCharCode(v+63)}pl=la;pg=lg}return o}
+const routeSig=()=>S.route.filter(id=>{const i=find(id);return i&&i.status==='pending'&&i.inRoute&&i.lat!=null}).join(',');
 function clearLines(){polys.forEach(p=>p.setMap(null));polys=[]}
-async function drawRoute(origin){try{await initMap()}catch(e){return}
- clearLines();if(!origin)return toast('Başlangıç seçin veya konum iznini verin');
+function paintLines(paths){clearLines();paths.forEach(path=>polys.push(new google.maps.Polyline({map,path,strokeColor:'#5B7CFA',strokeOpacity:.75,strokeWeight:5,zIndex:2})))}
+function restoreLine(){if(!map||polys.length||!S.line||S.line.sig!==routeSig())return false;paintLines(S.line.enc.map(decPoly));return true}
+async function drawRoute(origin,quiet){try{await initMap()}catch(e){return}
+ if(!origin)return toast('Başlangıç seçin veya konum iznini verin');
  const arr=[origin,...S.route.map(find).filter(i=>i&&i.status==='pending'&&i.inRoute&&i.lat!=null)];
- if(arr.length<2)return;let fail=false;
- for(let a=0;a<arr.length-1;a+=23){const b=Math.min(a+23,arr.length-1);
+ if(arr.length<2){clearLines();return}let fail=false;const paths=[];
+ for(let a=0;a<arr.length-1;a+=10){const b=Math.min(a+10,arr.length-1);
   const path=await legPath(arr[a],arr[b],arr.slice(a+1,b));
-  if(path)polys.push(new google.maps.Polyline({map,path,strokeColor:'#7c3aed',strokeWeight:4}));else fail=true;
-  await sleep(350)}
- S.dirty=false;save();renderSheet();
- toast(fail?'Sıra hazır, yol çizgisi çizilemedi (Routes API etkin ve anahtara izinli mi?)':'Rota hazır: '+(arr.length-1)+' durak')}
+  if(path)paths.push(path);else fail=true}
+ paintLines(paths);S.line=fail?null:{sig:routeSig(),enc:paths.map(encPoly)};S.dirty=false;save();renderSheet();
+ if(fail)toast('Sıra hazır, yolun bir kısmı çizilemedi: '+lastRouteErr);else if(!quiet)toast('Rota hazır: '+(arr.length-1)+' durak')}
 async function buildRoute(){
  if(S.route.length&&!ask('Rota yeniden hesaplanacak, sıra değişebilir. Onaylıyor musunuz?'))return;
  const origin=S.route.length?(pos||S.start):(S.start||pos);
@@ -568,11 +597,8 @@ function openAct(id){const i=find(id);if(!i)return;const o=orderOf(id),A=$('#act
  A.onclick=e=>{if(e.target===A){closeAct();return}const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;closeAct();
   if(a==='close')return;if(a==='up')move(id,-1);else if(a==='down')move(id,1);else if(a==='to')moveTo(id);else if(a==='route')toggleRoute(id);else if(a==='nav')openExt(navUrl(i));else act(id,a)}}
 function closeAct(){const A=$('#act');A.classList.remove('on');A.innerHTML=''}
-$('#key').value=S.key||'';
-$('#bKey').onclick=()=>{S.key=$('#key').value.trim();save();mapsP=null;gDenied=false;toast('Kaydedildi');ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{})};
-$('#bTest').onclick=async()=>{if(!S.key)return toast('Önce anahtarı yazıp Kaydet\'e basın');try{const j=await gcall('Atatürk Bulvarı Kızılay Ankara');toast(j.status==='OK'?'Google bağlantısı çalışıyor':'Google yanıtı: '+j.status+(j.error_message?' – '+j.error_message:''))}catch(e){alert('Google erişilemedi: '+e)}};
 $('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem);return;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
-$('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false};sel=null;clearLines();save();renderAll()}};
+$('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false,line:null};sel=null;clearLines();save();renderAll()}};
 function renderAll(){calcDup();$('#cnt').textContent=S.items.length+' / '+MAX;$('#bMode').checked=S.mode==='auto';$('#voiceSw').checked=S.voice!==false;
  renderList();renderRecent();renderBanner();renderMap();renderSheet();if(typeof navSync==='function')navSync()}
 
@@ -597,28 +623,17 @@ let navLine=null;if(S.voice===undefined)S.voice=true;
 function decPoly(str){let i=0,lat=0,lng=0;const out=[];while(i<str.length){for(const k of [0,1]){let s=0,v=0,b;do{b=str.charCodeAt(i++)-63;v|=(b&31)<<s;s+=5}while(b>=32);const d=v&1?~(v>>1):v>>1;if(k===0)lat+=d;else lng+=d}out.push({lat:lat/1e5,lng:lng/1e5})}return out}
 const LL=q=>q?({lat:typeof q.lat==='function'?q.lat():(q.lat!=null?q.lat:q.latitude),lng:typeof q.lng==='function'?q.lng():(q.lng!=null?q.lng:q.longitude)}):null;
 const secs=v=>v==null?0:typeof v==='number'?v:parseFloat(String(v))||0;
-async function navRouteREST(o,stops){const L=x=>({location:{latLng:{latitude:x.lat,longitude:x.lng}}});
- const r=await fetch('https://routes.googleapis.com/directions/v2:computeRoutes',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':S.key,
-  'X-Goog-FieldMask':'routes.legs.distanceMeters,routes.legs.duration,routes.legs.steps.distanceMeters,routes.legs.steps.navigationInstruction,routes.legs.steps.polyline,routes.legs.steps.endLocation'},
-  body:JSON.stringify({origin:L(o),destination:L(stops[stops.length-1]),intermediates:stops.slice(0,-1).map(L),travelMode:'DRIVE',routingPreference:'TRAFFIC_UNAWARE',languageCode:'tr',units:'METRIC'})});
- const j=await r.json();if(!r.ok||!j.routes||!j.routes[0])throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
+async function navRouteREST(o,stops){
+ const j=await api('/api/route',{origin:{lat:o.lat,lng:o.lng},stops:stops.map(s=>({lat:s.lat,lng:s.lng}))});if(!j.routes||!j.routes[0])throw new Error(j.error||'Rota alınamadı');
  return j.routes[0].legs.map(l=>({dist:l.distanceMeters||0,dur:secs(l.duration),steps:(l.steps||[]).map(s=>{const pth=s.polyline&&s.polyline.encodedPolyline?decPoly(s.polyline.encodedPolyline):[];
   return {text:(s.navigationInstruction&&s.navigationInstruction.instructions)||'',man:(s.navigationInstruction&&s.navigationInstruction.maneuver)||'',dist:s.distanceMeters||0,path:pth,end:s.endLocation&&s.endLocation.latLng?LL(s.endLocation.latLng):pth[pth.length-1]}})}))}
-async function navRouteJS(o,stops){const {Route}=await google.maps.importLibrary('routes');
- const r=await Route.computeRoutes({origin:{lat:o.lat,lng:o.lng},destination:{lat:stops[stops.length-1].lat,lng:stops[stops.length-1].lng},intermediates:stops.slice(0,-1).map(p=>({lat:p.lat,lng:p.lng})),travelMode:'DRIVING',language:'tr',fields:['legs']});
- const rt=r.routes&&r.routes[0];if(!rt||!rt.legs)throw new Error('rota yok');
- return rt.legs.map(l=>({dist:l.distanceMeters||0,dur:(l.durationMillis||l.staticDurationMillis||0)/1000,steps:(l.steps||[]).map(s=>{const pth=(s.path||[]).map(LL);const ni=s.navigationInstruction||{};
-  return {text:s.instructions||ni.instructions||'',man:s.maneuver||ni.maneuver||'',dist:s.distanceMeters||0,path:pth,end:s.endLocation?LL(s.endLocation.latLng||s.endLocation):pth[pth.length-1]}})}))}
-async function navRouteLegacy(o,stops){const r=await new Promise(res=>new google.maps.DirectionsService().route({origin:o,destination:stops[stops.length-1],waypoints:stops.slice(0,-1).map(p=>({location:{lat:p.lat,lng:p.lng},stopover:true})),travelMode:'DRIVING'},(rs,st)=>res({rs,st})));
- if(r.st!=='OK')throw new Error(r.st);
- return r.rs.routes[0].legs.map(l=>({dist:l.distance.value,dur:l.duration.value,steps:l.steps.map(s=>({text:(s.instructions||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),man:s.maneuver||'',dist:s.distance.value,path:s.path.map(LL),end:LL(s.end_location)}))}))}
 async function navCompute(){if(nav.busy)return;const o=pos;if(!o){toast('Konum bekleniyor…');return}
  const stops=S.route.map(find).filter(i=>i&&i.status==='pending'&&i.inRoute&&i.lat!=null&&!nav.skip.has(i.id)).slice(0,10);
  if(!stops.length){if(nav.skip.size){nav.skip.clear();return navCompute()}navStop(true);return}
  nav.busy=true;let legs=null,err='';
- for(const f of [navRouteREST,navRouteJS,navRouteLegacy]){try{legs=await f(o,stops);if(legs&&legs.length===stops.length)break;legs=null}catch(e){err=e.message||String(e)}}
+ try{legs=await navRouteREST(o,stops);if(!legs||legs.length!==stops.length)legs=null}catch(e){err=e.message||String(e)}
  nav.busy=false;nav.lastRe=Date.now();nav.off=0;
- if(!legs){toast('Yol tarifi alınamadı: '+err+' (Routes API etkin ve anahtara izinli olmalı)');return}
+ if(!legs){toast('Yol tarifi alınamadı: '+err);return}
  nav.stops=stops.map(s=>s.id);nav.legs=legs;nav.leg=0;nav.step=0;nav.spoken={};nav.arrived=null;
  if(navLine)navLine.setMap(null);
  navLine=new google.maps.Polyline({map,path:[].concat(...legs.map(l=>[].concat(...l.steps.map(s=>s.path)))),strokeColor:'#1d4ed8',strokeOpacity:.9,strokeWeight:7,zIndex:4});
@@ -681,6 +696,7 @@ function navTick(force){if(!nav.on||!pos||nav.busy)return;const L=nav.legs[nav.l
 async function navStart(){try{await initMap()}catch(e){return}
  if(!pos)return toast('Konum alınamadı: konum iznini verin ve GPS\'i açın');
  if(!S.route.length){await buildRoute();if(!S.route.length)return}
+ if(!polys.length&&!restoreLine())await drawRoute(pos,true);
  nav.on=true;nav.skip=new Set();S.follow=true;save();renderFollow();keepAwake();
  $('.top').style.display='none';sheetMode='mini';renderSheet();map.setZoom(18);map.panTo(pos);
  nav.exp=true;navRender();renderFollow();navArm();await navCompute()}
@@ -715,8 +731,8 @@ async function unpackRoute(s){let b=s.slice(1).replace(/-/g,'+').replace(/_/g,'/
 const baseUrl=()=>location.origin+location.pathname.replace(/index\.html$/,'');
 async function doShare(text,title){try{if(navigator.share){await navigator.share({title,text});return}}catch(e){if(e&&e.name==='AbortError')return}
  try{await navigator.clipboard.writeText(text);toast('Panoya kopyalandı, istediğiniz uygulamaya yapıştırın')}catch(e){prompt('Kopyalayın:',text)}}
-function closeOv(){$('#ov').classList.remove('on');$('#ov').innerHTML='';if(location.hash.startsWith('#r='))history.replaceState(null,'',location.pathname+location.search)}
-$('#bShare').onclick=()=>{const list=routeList();if(!list.length)return toast('Önce rota oluşturun');
+function closeOv(){$('#ov').classList.remove('on');$('#ov').innerHTML='';if(location.hash.startsWith('#r='))history.replaceState(null,'',location.pathname+location.search);if(!AUTH.user)showLogin()}
+$('#bShare').onclick=()=>{if(!isAdmin())return;const list=routeList();if(!list.length)return toast('Önce rota oluşturun');
  const ov=$('#ov');ov.innerHTML=`<div class="n" style="font-size:18px">Rotayı paylaş (${list.length} durak)</div>
  <div class="a">Gönderdiğiniz kişi listeyi açar, bir adrese dokununca Google Haritalar'da yol tarifi başlar. Uygulama yüklü olması gerekmez.</div>
  <button class="btn big p" id="shLink" style="margin-top:10px">🔗 Liste bağlantısını gönder (önerilen)</button>
@@ -737,10 +753,10 @@ async function showShared(){if(!location.hash.startsWith('#r='))return;let list;
  const draw=()=>{ov.innerHTML=`<div class="n" style="font-size:18px">Paylaşılan kargo rotası (${list.length} durak)</div>
  <div class="a">Bir adrese dokunun → Google Haritalar'da yol tarifi açılır. ✓ ile teslim edildi işaretleyin (yalnız bu telefonda saklanır).</div>
  ${segs.length?'<div class="lab">Google Haritalar\'da sırayla başlat</div><div class="seg">'+segs.map(g=>`<a class="btn" href="${g.u}" target="_blank" rel="noopener">${g.from}–${g.to}</a>`).join('')+'</div>':''}
- <div class="row"><button class="btn g" id="shImp">Bu rotayı uygulamama aktar</button><button class="btn x" id="shCl">Kapat</button></div>
+ <div class="row">${AUTH.user?'<button class="btn g" id="shImp">Bu rotayı uygulamama aktar</button>':''}<button class="btn x" id="shCl">Kapat</button></div>
  ${list.map((x,k)=>{const d=done[k]||x.s===1;return `<div class="card ${d?'done':''}" data-k="${k}"><div class="dot" style="background:${d?'#000':x.s===2?'#9ca3af':'#16a34a'}"></div><div class="col"><div class="n">${k+1}. ${esc(x.n||'(isim yok)')}</div><div class="a">${esc(x.a)}</div></div><div class="bt"><button class="btn" data-go="${k}">Yol tarifi</button><button class="btn x" data-v="${k}">Haritada</button><button class="btn ${d?'k':'g'}" data-t="${k}">${d?'↺':'✓'}</button></div></div>`}).join('')}`;
   $('#shCl').onclick=closeOv;
-  $('#shImp').onclick=()=>{if(!ask(list.length+' durak uygulamanıza eklensin ve rota olarak sıralansın mı? (Mevcut rota bunun yerine geçer)'))return;
+  if($('#shImp'))$('#shImp').onclick=()=>{if(!ask(list.length+' durak uygulamanıza eklensin ve rota olarak sıralansın mı? (Mevcut rota bunun yerine geçer)'))return;
    const ids=list.map((x,k)=>{const id=Date.now()+''+k+Math.random().toString(36).slice(2,5),v=(x.n?x.n+', ':'')+x.a;
     S.items.push({...parseEntry(v),raw:v,id,key:'M|'+norm(v)+'|'+id,area:S.area,lat:x.lat,lng:x.lng,geo:'ok',geoErr:'',status:(done[k]||x.s===1)?'delivered':x.s===2?'failed':'pending',inRoute:true,isNew:false});return id});
    S.route=ids;S.dirty=true;save();closeOv();renderAll();document.querySelector('nav button[data-t="map"]').click();toast('Rota aktarıldı. Haritada "Yolu çiz" ile çizgiyi oluşturun.')}};
@@ -751,13 +767,113 @@ async function showShared(){if(!location.hash.startsWith('#r='))return;let list;
   if(k!==undefined&&list[k])openExt(navUrl(list[k]))};
  draw();ov.classList.add('on')}
 window.addEventListener('hashchange',showShared);
+
+/* ---------- sunucu, giriş ve roller ---------- */
+let API='',AUTH={token:null,user:null,mapsKey:''};
+try{AUTH.token=localStorage.getItem('kargo-token')}catch(e){}
+const isAdmin=()=>!!(AUTH.user&&AUTH.user.role==='admin');
+async function loadConfig(){try{const r=await fetch('config.json',{cache:'no-store'});if(r.ok){const j=await r.json();API=String(j.api||'').replace(/\/+$/,'')}}catch(e){}
+ if(!API){try{API=localStorage.getItem('kargo-api')||''}catch(e){}}}
+async function api(path,body,method){
+ if(!API)throw new Error('Sunucu adresi tanımlı değil');
+ let r;try{r=await fetch(API+path,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json',...(AUTH.token?{Authorization:'Bearer '+AUTH.token}:{})},body:body?JSON.stringify(body):undefined})}
+ catch(e){throw new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.')}
+ let j={};try{j=await r.json()}catch(e){}
+ if(r.status===401&&path!=='/api/login'){endSession('Oturumunuz sona erdi, tekrar giriş yapın.');throw new Error(j.error||'Oturum geçersiz')}
+ if(!r.ok&&j.geo===undefined)throw new Error(j.error||j.err||('Sunucu hatası '+r.status));
+ return j}
+function showLogin(msg){const L=$('#login');L.classList.add('on');$('#srvRow').style.display=API?'none':'block';$('#lerr').textContent=msg||'';setTimeout(()=>{try{(API?$('#luser'):$('#lsrv')).focus()}catch(e){}},50)}
+function useState(username){const k='kargo-u-'+username;let raw=null;try{raw=localStorage.getItem(k);if(!raw){const old=localStorage.getItem('kargo-sesli-v1');if(old&&!localStorage.getItem('kargo-legacy-taken')){raw=old;localStorage.setItem('kargo-legacy-taken','1')}}}catch(e){}
+ LS=k;S=DEFS();try{Object.assign(S,JSON.parse(raw||'{}'))}catch(e){}delete S.key;S.trail=S.trail||[];S.dist=S.dist||0;if(S.follow===undefined)S.follow=true;if(S.voice===undefined)S.voice=true;
+ $('#area').value=S.area||'';$('#auto').checked=S.auto!==false;save()}
+function applyRole(){const a=isAdmin();$('#bShare').style.display=a?'':'none';$('#tabAdm').style.display=a?'':'none';
+ $('#acct').innerHTML=AUTH.user?`<b style="color:var(--ink)">${esc(AUTH.user.name||AUTH.user.username)}</b> (@${esc(AUTH.user.username)})${a?' <span class="chip adm">Yönetici</span>':''}<br>Bugün: ${AUTH.usage?AUTH.usage.geo:0} / ${AUTH.limits?AUTH.limits.geo:'-'} adres araması, ${AUTH.usage?AUTH.usage.route:0} / ${AUTH.limits?AUTH.limits.route:'-'} rota isteği`:'';
+ $('#ver').textContent='Kargo Rota '+VERSION}
+async function startSession(){const me=await api('/api/me');AUTH.user=me.user;AUTH.mapsKey=me.mapsKey||'';AUTH.limits=me.limits;AUTH.usage=me.usage;
+ useState(me.user.username);$('#login').classList.remove('on');applyRole();renderAll();renderFollow();
+ ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{});ping();
+ if(tab==='map')try{await initMap()}catch(e){}}
+function endSession(msg){AUTH.token=null;AUTH.user=null;AUTH.mapsKey='';try{localStorage.removeItem('kargo-token')}catch(e){}if(nav.on)navStop(false);applyRole();if(!location.hash.startsWith('#r='))showLogin(msg)}
+$('#bLogin').onclick=async()=>{const b=$('#bLogin'),u=$('#luser').value.trim(),pw=$('#lpass').value;$('#lerr').textContent='';
+ if(!API){const s=$('#lsrv').value.trim().replace(/\/+$/,'');if(!/^https:\/\/\S+$/.test(s)){$('#lerr').textContent='Sunucu adresini https:// ile başlayacak şekilde yazın';return}API=s;try{localStorage.setItem('kargo-api',s)}catch(e){}}
+ if(!u||!pw){$('#lerr').textContent='Kullanıcı adı ve şifreyi yazın';return}
+ b.disabled=true;b.textContent='Giriş yapılıyor…';
+ try{const j=await api('/api/login',{username:u,password:pw});AUTH.token=j.token;try{localStorage.setItem('kargo-token',j.token)}catch(e){}$('#lpass').value='';await startSession()}
+ catch(e){$('#lerr').textContent=e.message;if(/ulaşılamadı|tanımlı değil/.test(e.message)&&!localStorage.getItem('kargo-api'))API=''}
+ b.disabled=false;b.textContent='Giriş yap'};
+$('#lpass').addEventListener('keydown',e=>{if(e.key==='Enter')$('#bLogin').click()});
+$('#bLogout').onclick=async()=>{if(!ask('Çıkış yapılsın mı? Bu telefondaki adresleriniz silinmez, tekrar girişte geri gelir.'))return;try{await api('/api/logout',{})}catch(e){}endSession('Çıkış yapıldı.')};
+
+/* ---------- durum ve hata bildirimi, yönetici mesajı ---------- */
+function showNotice(m){const n=$('#notice');n.innerHTML='<b>Yöneticiden mesaj</b>'+esc(m)+'<div><button class="btn ghost" id="nOk">Tamam</button></div>';n.classList.add('on');if(navigator.vibrate)navigator.vibrate([120,80,120]);$('#nOk').onclick=()=>n.classList.remove('on')}
+async function ping(){if(!AUTH.user||document.visibilityState==='hidden')return;
+ const c=S.items.reduce((a,i)=>{a[i.status]=(a[i.status]||0)+1;return a},{});
+ try{const j=await api('/api/ping',{stats:{version:VERSION,items:S.items.length,pending:c.pending||0,delivered:c.delivered||0,failed:c.failed||0,nav:nav.on,unfound:S.items.filter(i=>i.geo==='none').length}});if(j.message)showNotice(j.message)}catch(e){}}
+setInterval(ping,60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')ping()});
+let lastRep=0;function report(m){if(!AUTH.user||Date.now()-lastRep<30000)return;lastRep=Date.now();api('/api/log',{error:String(m).slice(0,480)}).catch(()=>{})}
+window.addEventListener('error',e=>report((e.message||'Hata')+(e.lineno?' (satır '+e.lineno+')':'')));
+window.addEventListener('unhandledrejection',e=>report('İşlem hatası: '+((e.reason&&e.reason.message)||e.reason)));
+
+/* ---------- yönetim sayfası ---------- */
+let ADM={users:[],month:null,now:0},admTimer=null;
+const ago=ts=>{if(!ts)return 'hiç girmedi';const s=(ADM.now||Date.now())-ts;if(s<60000)return 'şimdi';if(s<3600000)return Math.round(s/60000)+' dk önce';if(s<86400000)return Math.round(s/3600000)+' saat önce';return Math.round(s/86400000)+' gün önce'};
+function tierCost(n,free,bands){let c=0,lo=free;for(const [hi,p] of bands){if(n>lo)c+=(Math.min(n,hi)-lo)*p/1000;lo=hi}return c}
+const GEO_T=[[100000,5],[500000,4],[1000000,3],[5000000,1.5],[1e18,.38]];
+async function loadAdmin(){if(!isAdmin())return;try{const j=await api('/api/admin/users');ADM=j;renderAdmin()}catch(e){toast('Kullanıcılar alınamadı: '+e.message)}}
+function renderAdmin(){const us=ADM.users||[],cour=us.filter(u=>u.role!=='admin'),now=ADM.now||Date.now();
+ const online=cour.filter(u=>u.active&&u.last_seen&&now-u.last_seen<300000).length,todayAct=cour.filter(u=>u.last_seen&&now-u.last_seen<86400000).length;
+ const m=ADM.month||{geo:0,geo_cache:0,route:0},cost=tierCost(m.geo,10000,GEO_T)+tierCost(m.route,10000,GEO_T);
+ $('#acnt').textContent=cour.length+' kurye';
+ $('#kpis').innerHTML=`<div class="kpi"><b>${online}</b><span>şu an açık</span></div><div class="kpi"><b>${todayAct}</b><span>son 24 saatte giren</span></div>
+ <div class="kpi"><b>${m.geo.toLocaleString('tr-TR')}</b><span>bu ay adres araması (${m.geo_cache.toLocaleString('tr-TR')} önbellekten)</span></div><div class="kpi"><b>~${Math.round(cost).toLocaleString('tr-TR')} $</b><span>bu ay tahmini adres+rota maliyeti</span></div>`;
+ $('#ulist').innerHTML=us.map(u=>{const st=u.last_stats||{},on=u.active&&u.last_seen&&now-u.last_seen<300000;
+  return `<div class="rw" data-uid="${u.id}"><span class="ust${!u.active?' off':on?' on':''}"></span><div class="col"><div class="nm">${esc(u.name||u.username)}${u.role==='admin'?'<span class="chip adm">Yönetici</span>':''}${!u.active?'<span class="chip dis">Kapalı</span>':''}</div>
+  <div class="meta">@${esc(u.username)} · ${ago(u.last_seen)}${st.version?' · '+esc(st.version):''}</div>
+  ${u.role!=='admin'?`<div class="meta">Bugün: ${st.items!=null?st.items+' adres, '+(st.delivered||0)+' teslim · ':''}Google ${u.geo}/${u.daily_geo} · rota ${u.route}/${u.daily_route}</div>`:''}
+  ${u.last_error?`<div class="errl">Son hata (${ago(u.last_error_at)}): ${esc(u.last_error)}</div>`:''}${u.message?`<div class="meta">Bekleyen mesaj: ${esc(u.message)}</div>`:''}</div>
+  ${u.role!=='admin'?`<button class="ib" data-uid="${u.id}" aria-label="İşlemler">${IC.more}</button>`:''}</div>`}).join('')||'<p class="empty">Henüz kurye yok. "Kullanıcı ekle" ile başlayın.</p>'}
+const genPw=()=>{const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';const r=crypto.getRandomValues(new Uint8Array(8));r.forEach(x=>s+=c[x%c.length]);return s};
+const slug=n=>norm(n).toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.|\.$/g,'').slice(0,20);
+function invite(name,username,pw){const url=baseUrl();
+ doShare(`Merhaba ${name}, Kargo Rota uygulamasına davetlisiniz.\n\n1) Chrome'da açın: ${url}\n2) Menüden "Uygulamayı yükle" deyin.\n3) Giriş bilgileriniz:\nKullanıcı adı: ${username}\nŞifre: ${pw}`,'Kargo Rota daveti')}
+function adminForm(title,fields,okText,onOk){const A=$('#act');
+ A.innerHTML=`<div class="panel" role="dialog" aria-label="${esc(title)}"><div class="ah"><div class="nm">${esc(title)}</div></div><div class="frm">${fields.map(f=>`<label for="f_${f.k}">${esc(f.label)}</label><input id="f_${f.k}" value="${esc(f.v||'')}" ${f.type?'type="'+f.type+'"':''} autocomplete="off" autocapitalize="none">`).join('')}</div>
+ <div class="ar"><button class="btn primary" data-ok="1">${esc(okText)}</button><button class="btn ghost" data-x="1">Vazgeç</button></div><div id="ferr" class="errl" style="padding:0 18px 8px"></div></div>`;
+ A.classList.add('on');
+ A.onclick=async e=>{if(e.target===A||e.target.closest('[data-x]')){closeAct();return}if(!e.target.closest('[data-ok]'))return;
+  const v={};fields.forEach(f=>v[f.k]=$('#f_'+f.k).value.trim());try{await onOk(v);closeAct()}catch(er){$('#ferr').textContent=er.message}}}
+$('#bAddUser').onclick=()=>{adminForm('Kullanıcı ekle',[{k:'name',label:'Ad soyad'},{k:'username',label:'Kullanıcı adı (küçük harf, rakam, nokta)'},{k:'pw',label:'Şifre',v:genPw()},{k:'geo',label:'Günlük adres arama sınırı',v:'400',type:'number'}],'Ekle ve davet et',
+ async v=>{if(!v.name)throw new Error('Ad soyad yazın');const un=v.username||slug(v.name);
+  await api('/api/admin/users',{name:v.name,username:un,password:v.pw,daily_geo:+v.geo||400});toast(v.name+' eklendi');await loadAdmin();invite(v.name,un,v.pw)});
+ const nm=$('#f_name'),un=$('#f_username');nm.oninput=()=>{if(!un.dataset.t)un.value=slug(nm.value)};un.oninput=()=>{un.dataset.t='1'}};
+$('#bARefresh').onclick=loadAdmin;
+$('#ulist').onclick=e=>{const r=e.target.closest('[data-uid]');if(!r)return;const u=ADM.users.find(x=>x.id==r.dataset.uid);if(!u||u.role==='admin')return;
+ const A=$('#act'),it=(a,l,c)=>`<button class="ai${c?' '+c:''}" data-a="${a}">${l}</button>`;
+ A.innerHTML=`<div class="panel" role="dialog" aria-label="Kullanıcı işlemleri"><div class="ah"><div class="nm">${esc(u.name)}</div><div class="ad">@${esc(u.username)} · ${ago(u.last_seen)}</div></div>
+ ${it('message','Mesaj gönder')}${it('password','Şifreyi sıfırla ve yeniden davet et')}${it('logout','Oturumunu kapat')}${it('limits','Günlük sınırları değiştir')}${u.last_error?it('clear_error','Hata kaydını temizle'):''}
+ ${u.active?it('disable','Hesabı kapat','danger'):it('enable','Hesabı aç')}${it('delete','Kullanıcıyı sil','danger')}${it('close','Vazgeç')}</div>`;
+ A.classList.add('on');
+ A.onclick=async ev=>{if(ev.target===A){closeAct();return}const b=ev.target.closest('button');if(!b)return;const a=b.dataset.a;if(a==='close'){closeAct();return}
+  const run=async(body,okMsg)=>{try{await api('/api/admin/users/'+u.id,body);toast(okMsg);await loadAdmin()}catch(er){toast(er.message)}};
+  if(a==='message'){adminForm('Mesaj: '+u.name,[{k:'m',label:'Kurye uygulamayı açınca görecek'}],'Gönder',async v=>{if(!v.m)throw new Error('Mesaj yazın');await api('/api/admin/users/'+u.id,{action:'message',message:v.m});toast('Mesaj kuyruğa alındı, kurye uygulamayı açınca görecek');loadAdmin()});return}
+  if(a==='password'){const pw=genPw();closeAct();if(!ask(u.name+' için yeni şifre oluşturulsun mu? Açık oturumları kapanır.'))return;await run({action:'password',password:pw},'Şifre sıfırlandı');invite(u.name,u.username,pw);return}
+  if(a==='limits'){adminForm('Sınırlar: '+u.name,[{k:'g',label:'Günlük adres arama',v:String(u.daily_geo),type:'number'},{k:'r',label:'Günlük rota isteği',v:String(u.daily_route),type:'number'}],'Kaydet',async v=>{await api('/api/admin/users/'+u.id,{action:'limits',daily_geo:+v.g,daily_route:+v.r});toast('Sınırlar güncellendi');loadAdmin()});return}
+  closeAct();
+  if(a==='disable'&&!ask(u.name+' hesabı kapatılsın mı? Uygulamadan hemen çıkarılır.'))return;
+  if(a==='delete'&&!ask(u.name+' kalıcı olarak silinsin mi?'))return;
+  await run({action:a},{disable:'Hesap kapatıldı',enable:'Hesap açıldı',logout:'Oturum kapatıldı',clear_error:'Hata kaydı temizlendi',delete:'Kullanıcı silindi'}[a]||'Tamam')}};
 document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dataset.t;closeAct();$('#more').style.display='none';
  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+tab));
+ clearInterval(admTimer);if(tab==='adm'){loadAdmin();admTimer=setInterval(loadAdmin,30000)}
  if(tab==='map'){keepAwake();try{await initMap()}catch(e){}}});
 let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#gInstall').style.display='block'});
 $('#bInstall').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(e){}dip=null;$('#gInstall').style.display='none'};
 window.addEventListener('appinstalled',()=>{$('#gInstall').style.display='none';toast('Yüklendi: ana ekrandaki "Kargo Rota" simgesinden açın')});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-renderAll();renderFollow();showShared();if(S.key)ensureMaps().then(()=>S.items.filter(i=>i.geo==='pending').forEach(geoItem)).catch(()=>{});
+applyRole();renderAll();renderFollow();
+(async()=>{await loadConfig();
+ if(location.hash.startsWith('#r=')){showShared();if(AUTH.token)startSession().catch(()=>{});return}
+ if(!AUTH.token){showLogin();return}
+ try{await startSession()}catch(e){if(AUTH.token)showLogin(e.message)}})();
 </script></body></html>
