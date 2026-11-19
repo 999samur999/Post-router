@@ -1,0 +1,100 @@
+name: Sunucuyu yükle
+
+# sunucu/worker.js dosyasını Cloudflare'a yükler.
+# Gerekli GitHub gizli değişkenleri (Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN  : Cloudflare API token (Workers + D1 düzenleme izni)
+#   GOOGLE_SERVER_KEY     : Geocoding + Routes API anahtarı (sunucu)
+#   MAPS_BROWSER_KEY      : harita anahtarı (eski anahtar)
+#   ADMIN_USER            : yönetici kullanıcı adı
+#   ADMIN_PASSWORD        : yönetici şifresi
+#   CLOUDFLARE_ACCOUNT_ID : isteğe bağlı
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'sunucu/**'
+      - '.github/workflows/sunucu.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Hazırlık kontrolü
+        env:
+          ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::CLOUDFLARE_API_TOKEN gizli değişkeni eklenmemiş"; exit 1; fi
+          if [ ! -f sunucu/worker.js ]; then echo "::error::sunucu/worker.js dosyası yok"; exit 1; fi
+          if ! grep -q "export default" sunucu/worker.js; then echo "::error::sunucu/worker.js eksik yapıştırılmış"; exit 1; fi
+          if [ -n "$ACC" ]; then echo "CLOUDFLARE_ACCOUNT_ID=$ACC" >> "$GITHUB_ENV"; fi
+          npm i -g wrangler@4 >/dev/null 2>&1
+          wrangler --version
+
+      - name: Veritabanını bul ya da oluştur
+        run: |
+          id=$(wrangler d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s.slice(s.indexOf("[")));const d=a.find(x=>x.name==="kargo-db");console.log(d?(d.uuid||d.id||""):"")}catch(e){console.log("")}})')
+          if [ -z "$id" ]; then
+            echo "kargo-db yok, oluşturuluyor"
+            wrangler d1 create kargo-db
+            id=$(wrangler d1 list --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s.slice(s.indexOf("[")));const d=a.find(x=>x.name==="kargo-db");console.log(d?(d.uuid||d.id||""):"")})')
+          fi
+          if [ -z "$id" ]; then echo "::error::Veritabanı oluşturulamadı. Token'da D1 Edit izni var mı?"; exit 1; fi
+          echo "Veritabanı: $id"
+          cat > wrangler.toml <<EOF
+          name = "kargo-rota"
+          main = "sunucu/worker.js"
+          compatibility_date = "2025-01-01"
+          workers_dev = true
+
+          [[d1_databases]]
+          binding = "DB"
+          database_name = "kargo-db"
+          database_id = "$id"
+          EOF
+          cat wrangler.toml
+
+      - name: Sunucuyu yükle
+        run: wrangler deploy 2>&1 | tee deploy.log
+
+      - name: Gizli değişkenleri yükle
+        env:
+          GOOGLE_SERVER_KEY: ${{ secrets.GOOGLE_SERVER_KEY }}
+          MAPS_BROWSER_KEY: ${{ secrets.MAPS_BROWSER_KEY }}
+          ADMIN_USER: ${{ secrets.ADMIN_USER }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ALLOWED_ORIGIN: https://${{ github.repository_owner }}.github.io
+        run: |
+          node -e '
+            const k=["GOOGLE_SERVER_KEY","MAPS_BROWSER_KEY","ADMIN_USER","ADMIN_PASSWORD","ALLOWED_ORIGIN"];
+            const o={};const miss=[];
+            for(const n of k){const v=(process.env[n]||"").trim();if(v)o[n]=n==="ALLOWED_ORIGIN"?v.toLowerCase():v;else miss.push(n)}
+            require("fs").writeFileSync("secrets.json",JSON.stringify(o));
+            console.log("Yüklenecek: "+Object.keys(o).join(", "));
+            if(miss.length)console.log("::warning::Eksik gizli değişken: "+miss.join(", "));
+          '
+          wrangler secret bulk secrets.json
+          rm -f secrets.json
+
+      - name: Sunucu adresi
+        run: |
+          url=$(grep -o 'https://[a-zA-Z0-9.-]*workers\.dev' deploy.log | head -1)
+          echo "Sunucu adresi: $url"
+          echo "config.json içeriği:"
+          echo "{\"api\":\"$url\"}"
+          if [ -n "$url" ]; then
+            sleep 5
+            echo "Deneme:"; curl -s "$url/api/me" || true; echo
+          fi
+          echo "### Sunucu hazır" >> "$GITHUB_STEP_SUMMARY"
+          echo "Adres: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "config.json: \`{\"api\":\"$url\"}\`" >> "$GITHUB_STEP_SUMMARY"
