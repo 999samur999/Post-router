@@ -182,6 +182,20 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 #notice{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:35;background:var(--ink);color:#fff;border-radius:14px;padding:12px 14px;display:none;box-shadow:0 8px 24px rgba(28,36,48,.35)}
 #notice.on{display:block}#notice b{display:block;font:700 15px var(--fc);color:var(--hivis);margin-bottom:2px}
 #notice button{margin-top:10px;min-height:38px}
+/* dağıtım saatleri ve arşiv */
+.runbar{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 16px 10px;font:600 14px var(--fc);color:var(--muted);font-variant-numeric:tabular-nums}
+.runbar b{color:var(--ink);font-size:15.5px;margin-left:3px}
+.sh-run{font:600 13.5px var(--fc);color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}.sh-run b{color:var(--ink)}
+.tm{font-size:13px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}.tm b{color:var(--green);font-weight:600}.tm b.f{color:var(--danger)}
+.fold{display:flex;align-items:center;gap:12px;padding:14px 12px;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:left}
+.fold:first-child{border-top:0}
+.fold .fi{width:42px;height:42px;border-radius:12px;background:#FFF6D6;color:#9a6b00;display:grid;place-items:center;flex:none}
+.fold .ft{font:700 16.5px var(--fc)}
+.fold .fs{font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fold .fc{margin-left:auto;text-align:right;font:600 13px var(--fc);color:var(--muted);flex:none}.fold .fc b{display:block;font-size:17px;color:var(--green)}
+.back{display:inline-flex;align-items:center;gap:4px;margin:14px 16px 0;padding:6px 0;background:none;border:0;color:var(--muted);font-weight:600;cursor:pointer}
+.no.st{font-size:11px}
+#toast button{margin-left:10px;background:var(--hivis);color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font-weight:700}
 #toast{position:fixed;left:16px;right:16px;bottom:88px;z-index:30;background:var(--ink);color:#fff;padding:12px 14px;border-radius:12px;display:none;font-size:14.5px;box-shadow:0 6px 20px rgba(28,36,48,.3)}
 </style></head><body><div id="app">
 
@@ -218,6 +232,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
     <button id="bRoute">Rotayı yeniden hesapla</button>
     <button id="bDraw">Yolu yeniden çiz</button>
     <button id="bNav">Sıradakini Google Haritalar'da aç</button>
+    <button id="bFinish">Dağıtımı bitir ve kaydet</button>
    </div></div>
  </div>
  <div class="navp" id="navp"></div>
@@ -227,8 +242,13 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 
 <section id="p-list" class="pane">
  <header class="hd"><h1>Liste</h1><span class="count" id="lcnt"></span></header>
+ <div class="runbar" id="lrun"></div>
  <div id="list" class="rows"></div>
  <p class="empty" id="lempty">Henüz adres yok. Ekle sekmesinden başlayın.</p>
+</section>
+
+<section id="p-arch" class="pane">
+ <div id="archBody"></div>
 </section>
 
 <section id="p-set" class="pane">
@@ -263,6 +283,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
  <button data-t="add" class="on"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ekle</button>
  <button data-t="map"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>Harita</button>
  <button data-t="list"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Liste</button>
+ <button data-t="arch"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>Rotalar</button>
  <button data-t="set"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Ayarlar</button>
  <button data-t="adm" id="tabAdm" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>Yönetim</button>
 </nav>
@@ -279,7 +300,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 <div id="toast" role="status"></div>
 <script>
 const IC={"check": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 5 5L20 7\"/></svg>", "undo": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>", "more": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/></svg>", "edit": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20h4L19 9l-4-4L4 16v4Z\"/></svg>", "x": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6 6 18\"/></svg>", "pin": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>"};
-const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v14';let LS='kargo-sesli-v1';
+const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v15';let LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const TRM={ç:'C',ğ:'G',ı:'I',ö:'O',ş:'S',ü:'U',Ç:'C',Ğ:'G',İ:'I',Ö:'O',Ş:'S',Ü:'U'};
@@ -380,7 +401,9 @@ function geocodeText(it){return gq=gq.then(async()=>{
  catch(e){return {geo:'pending',geoErr:e.message||'Sunucuya ulaşılamadı'}}}).catch(()=>({geo:'pending'}))}
 async function geoItem(it){const g=await geocodeText(it);
  if(g.geo==='pending'&&!g.geoErr)return;upd(it.id,{geo:g.geo,lat:g.lat,lng:g.lng,geoErr:g.geoErr,found:g.found||''})}
-function upd(id,p){const i=find(id);if(!i)return;Object.assign(i,p);save();renderAll()}
+function upd(id,p){const i=find(id);if(!i)return;const sc=p.status&&p.status!==i.status;
+ if(sc){p.at=p.status==='pending'?null:Date.now();if(p.status==='pending')p.arr=null;else if(!S.runStart)S.runStart=Date.now()}
+ Object.assign(i,p);save();renderAll();if(sc)checkDone()}
 
 /* ---------- ekleme (yazı / ses) ---------- */
 function addEntry(text){
@@ -446,7 +469,7 @@ function onPos(p){const c=p.coords;pos={lat:c.latitude,lng:c.longitude};
 function renderDist(){const e=$('#dist');if(e)e.textContent='Gidilen yol: '+(S.dist/1000).toFixed(1)+' km'}
 if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{onPos(p);
  if(S.mode!=='auto')return;const n=nextStop();if(!n)return;
- if(hav(pos,n)<ARRIVE_M){if(dwell.id!==n.id)dwell={id:n.id,t:Date.now()};
+ if(hav(pos,n)<ARRIVE_M){if(dwell.id!==n.id){dwell={id:n.id,t:Date.now()};if(!n.arr){n.arr=dwell.t;save()}}
   else if(Date.now()-dwell.t>DWELL_MS){upd(n.id,{status:'delivered'});if(navigator.vibrate)navigator.vibrate([100,80,100]);dwell={id:null,t:0}}}
  else dwell={id:null,t:0}},e=>{if(e.code===1)toast('Konum izni verilmedi: canlı takip çalışmaz')},{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
 
@@ -487,7 +510,7 @@ const sheetBase=()=>nav.on?'mini':'peek';
 function setSheet(m){sheetMode=m;renderSheet()}
 function renderSheet(){const sh=$('#sheet');sh.className='sheet '+sheetMode;
  const it=find(sel)||nextStop(),c=S.items.reduce((a,i)=>{a[i.status]++;return a},{pending:0,delivered:0,failed:0});
- $('#shHead').innerHTML=`<div class="grab"></div><div class="stats"><span><b>${c.pending}</b>bekliyor</span><span><b>${c.delivered}</b>teslim</span><span><b>${c.failed}</b>edilemedi</span></div><div class="dist" id="dist"></div>`+
+ $('#shHead').innerHTML=`<div class="grab"></div><div class="stats"><span><b>${c.pending}</b>bekliyor</span><span><b>${c.delivered}</b>teslim</span><span><b>${c.failed}</b>edilemedi</span></div><div class="dist" id="dist"></div><div class="sh-run">${runHtml()}</div>`+
   (sheetMode==='full'?'':`<div class="sh-hint">Dağıtım listesi için yukarı çekin</div>`);
  let h='';
  if(sheetMode==='full'){const arr=S.route.length?S.route.map(find).filter(Boolean).concat(S.items.filter(i=>!S.route.includes(i.id))):S.items;
@@ -576,12 +599,13 @@ function renderBanner(){const n=S.items.filter(i=>i.isNew&&i.status==='pending')
  const b=$('#bNew');if(b)b.onclick=addNewToRoute}
 function geoNote(i){return ({pending:'Konum aranıyor'+(i.geoErr?': '+i.geoErr:'…'),approx:'Yaklaşık konum, haritadan kontrol edin',none:'Konum bulunamadı'+(i.geoErr?': '+i.geoErr:'')})[i.geo]||''}
 function rowHtml(i,num){const o=orderOf(i.id),d=i.status!=='pending',w=geoNote(i);
- return `<div class="rw${i.status==='delivered'?' done':''}${DUP.has(i.id)?' dup':''}" data-id="${i.id}"><span class="no" style="--c:${colorOf(i)}">${num&&o?o:''}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${w?`<div class="warn">${esc(w)}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}</div>
+ return `<div class="rw${i.status==='delivered'?' done':''}${DUP.has(i.id)?' dup':''}" data-id="${i.id}"><span class="no" style="--c:${colorOf(i)}">${num&&o?o:''}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${w?`<div class="warn">${esc(w)}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}${timeLine(i)}</div>
  ${d?`<button class="ib" data-a="pending" data-id="${i.id}" aria-label="Bekliyor'a al">${IC.undo}</button>`:`<button class="ib ok" data-a="delivered" data-id="${i.id}" aria-label="Teslim edildi">${IC.check}</button>`}<button class="ib" data-a="menu" data-id="${i.id}" aria-label="Diğer işlemler">${IC.more}</button></div>`}
 function renderList(){
  const arr=S.route.length?[...S.items].sort((a,b)=>(S.route.indexOf(a.id)+1||9999)-(S.route.indexOf(b.id)+1||9999)):S.items;
  $('#list').innerHTML=arr.map(i=>rowHtml(i,true)).join('');
- const pend=S.items.filter(i=>i.status==='pending').length;$('#lcnt').textContent=S.items.length?pend+' bekliyor':'';$('#lempty').style.display=S.items.length?'none':'block'}
+ const pend=S.items.filter(i=>i.status==='pending').length;$('#lcnt').textContent=S.items.length?pend+' bekliyor':'';$('#lempty').style.display=S.items.length?'none':'block';
+ $('#lrun').innerHTML=S.items.length?runHtml():'';$('#lrun').style.display=S.items.length?'flex':'none'}
 $('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
 function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="rw${DUP.has(i.id)?' dup':''}"><span class="dotc" style="--c:${colorOf(i)}"></span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${geoNote(i)?`<div class="warn">${esc(geoNote(i))}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}</div><button class="ib" data-e="1" data-id="${i.id}" aria-label="Düzenle">${IC.edit}</button><button class="ib" data-id="${i.id}" aria-label="Geri al">${IC.x}</button></div>`).join('')}
 $('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;if(b.dataset.e){startEdit(id);return}S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
@@ -598,9 +622,65 @@ function openAct(id){const i=find(id);if(!i)return;const o=orderOf(id),A=$('#act
   if(a==='close')return;if(a==='up')move(id,-1);else if(a==='down')move(id,1);else if(a==='to')moveTo(id);else if(a==='route')toggleRoute(id);else if(a==='nav')openExt(navUrl(i));else act(id,a)}}
 function closeAct(){const A=$('#act');A.classList.remove('on');A.innerHTML=''}
 $('#bRetry').onclick=()=>{gDenied=false;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem);return;S.items.filter(i=>i.geo==='none'||i.geo==='pending').forEach(geoItem)};
-$('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false,line:null};sel=null;clearLines();save();renderAll()}};
+$('#bClear').onclick=()=>{if(ask('Tüm adresler ve rota silinsin mi?')){S={...S,items:[],route:[],start:null,dirty:false,line:null,runStart:null};clearTimeout(doneT);sel=null;clearLines();save();renderAll()}};
 function renderAll(){calcDup();$('#cnt').textContent=S.items.length+' / '+MAX;$('#bMode').checked=S.mode==='auto';$('#voiceSw').checked=S.voice!==false;
  renderList();renderRecent();renderBanner();renderMap();renderSheet();if(typeof navSync==='function')navSync()}
+
+const FOLDIC='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>';
+/* ---------- dağıtım saatleri ve rota arşivi ---------- */
+const clk=ts=>ts?new Date(ts).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}):'—';
+const dayTxt=ts=>new Date(ts).toLocaleDateString('tr-TR',{day:'numeric',month:'long',weekday:'long'});
+function durTxt(ms){const m=Math.max(0,Math.round(ms/60000)),h=Math.floor(m/60);return h?h+' sa '+(m%60)+' dk':m+' dk'}
+function timeLine(i){if(!i.at&&!i.arr)return '';const p=[];if(i.arr)p.push('Varış '+clk(i.arr));
+ if(i.at)p.push(i.status==='failed'?`<b class="f">Edilemedi ${clk(i.at)}</b>`:`<b>Teslim ${clk(i.at)}</b>`);return `<div class="tm">${p.join(' · ')}</div>`}
+function runHtml(){if(!S.runStart)return '<span>Dağıtım henüz başlamadı</span>';
+ return `<span>Başlangıç<b>${clk(S.runStart)}</b></span><span>Bitiş<b>devam ediyor</b></span><span>Geçen<b>${durTxt(Date.now()-S.runStart)}</b></span>`}
+let ARCH=[],AK=null,archSel=null,doneT=null;
+function loadArch(u){AK='kargo-arch-'+u;try{ARCH=JSON.parse(localStorage.getItem(AK)||'[]')}catch(e){ARCH=[]}if(tab==='arch')renderArch()}
+function saveArch(){if(!AK)return;while(ARCH.length){try{localStorage.setItem(AK,JSON.stringify(ARCH));return}catch(e){ARCH.pop()}}try{localStorage.setItem(AK,'[]')}catch(e){}}
+const routeItems=()=>S.route.map(find).filter(Boolean);
+function checkDone(){clearTimeout(doneT);const r=routeItems();if(!r.length||r.some(i=>i.status==='pending'))return;doneT=setTimeout(()=>finishRoute(false),2500)}
+function finishRoute(manual){clearTimeout(doneT);const ids=new Set(S.route);
+ const keep=S.items.filter(i=>!ids.has(i.id)&&i.status==='pending'),done=S.items.filter(i=>!keep.includes(i));
+ if(!done.length)return;
+ const ats=done.map(i=>i.at).filter(Boolean),start=S.runStart||(ats.length?Math.min(...ats):Date.now());
+ const end=manual?Date.now():(ats.length?Math.max(...ats):Date.now());
+ const rec={id:Date.now().toString(36),start,end,area:S.area||'',dist:S.dist||0,route:S.route.slice(),items:JSON.parse(JSON.stringify(done)),manual:!!manual};
+ if(nav.on)navStop(false);
+ ARCH.unshift(rec);if(ARCH.length>60)ARCH.length=60;saveArch();
+ S.items=keep;S.route=[];S.dirty=false;S.line=null;S.runStart=null;S.trail=[];S.dist=0;sel=null;
+ try{clearLines();if(trailLine)trailLine.setPath([])}catch(e){}
+ save();renderAll();if(tab==='arch')renderArch();
+ undoBar('Dağıtım bitti ve Rotalar\'a kaydedildi'+(keep.length?'. Rotada olmayan '+keep.length+' adres listede kaldı.':''),()=>restoreRec(rec.id))}
+function undoBar(msg,fn){const e=$('#toast');e.innerHTML='';const s=document.createElement('span');s.textContent=msg;const b=document.createElement('button');b.textContent='Geri al';
+ b.onclick=()=>{e.style.display='none';fn()};e.append(s,b);e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',12000)}
+function restoreRec(id){const k=ARCH.findIndex(r=>r.id===id);if(k<0)return;const r=ARCH[k];
+ if(S.route.length)return toast('Ana ekranda devam eden bir rota var. Önce onu bitirin.');
+ ARCH.splice(k,1);saveArch();S.items=r.items.concat(S.items);S.route=r.route.filter(x=>S.items.some(i=>i.id===x));S.runStart=r.start;S.dist=r.dist||0;S.dirty=true;S.line=null;
+ save();renderAll();archSel=null;if(tab==='arch')renderArch();toast('Rota ana ekrana geri alındı')}
+function recCounts(r){const c={delivered:0,failed:0,pending:0};r.items.forEach(i=>c[i.status]=(c[i.status]||0)+1);return c}
+function renderArch(){const B=$('#archBody');if(!B)return;const r=archSel&&ARCH.find(x=>x.id===archSel);
+ if(!r){B.innerHTML=`<header class="hd"><h1>Rotalar</h1><span class="count">${ARCH.length?ARCH.length+' rota':''}</span></header>`+
+  (ARCH.length?`<div class="rows">${ARCH.map(x=>{const c=recCounts(x);return `<button class="fold" data-id="${x.id}"><span class="fi">${FOLDIC}</span><span><span class="ft">${esc(dayTxt(x.start))}</span><br><span class="fs">${clk(x.start)} – ${clk(x.end)} · ${durTxt(x.end-x.start)}${x.area?' · '+esc(x.area):''}</span></span><span class="fc"><b>${c.delivered}</b>teslim${c.failed?'<br>'+c.failed+' edilemedi':''}</span></button>`}).join('')}</div>
+  <p class="hint" style="margin-top:10px">Rotalar bu telefonda saklanır. Son 60 rota tutulur.</p>`:'<p class="empty">Henüz biten rota yok. Bir rotadaki tüm teslimatlar işaretlenince liste buraya otomatik kaydedilir.</p>');return}
+ const c=recCounts(r),ord=id=>{const k=r.route.indexOf(id);return k>=0?k+1:''};
+ const arr=[...r.items].sort((a,b)=>(ord(a.id)||9999)-(ord(b.id)||9999));
+ B.innerHTML=`<button class="back" id="aBack">‹ Rotalar</button><header class="hd" style="padding-top:4px"><h1>${esc(dayTxt(r.start))}</h1></header>
+ <div class="kpis"><div class="kpi"><b>${clk(r.start)}</b><span>Başlangıç</span></div><div class="kpi"><b>${clk(r.end)}</b><span>Bitiş</span></div>
+ <div class="kpi"><b>${durTxt(r.end-r.start)}</b><span>Süre</span></div><div class="kpi"><b>${(r.dist/1000).toFixed(1)} km</b><span>Gidilen yol</span></div>
+ <div class="kpi"><b>${c.delivered}</b><span>Teslim edildi</span></div><div class="kpi"><b>${c.failed+c.pending}</b><span>Edilemedi${c.pending?' / bekleyen':''}</span></div></div>
+ <h2 class="sec">Teslimatlar</h2><div class="rows">${arr.map(i=>`<div class="rw${i.status==='delivered'?' done':''}"><span class="no" style="--c:${colorOf(i)}">${ord(i.id)}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${timeLine(i)||(i.status==='pending'?'<div class="tm"><b class="f">Teslim edilmedi</b></div>':'')}</div></div>`).join('')}</div>
+ <div class="group" style="margin-top:14px"><button class="btn ghost block" id="aRestore">Ana ekrana geri al</button><button class="btn danger block" id="aDel">Bu rotayı sil</button></div>`;
+ $('#aBack').onclick=()=>{archSel=null;renderArch()};
+ $('#aRestore').onclick=()=>{if(ask('Bu rota ana ekrana geri alınsın mı? Rotalar listesinden çıkar.'))restoreRec(r.id)};
+ $('#aDel').onclick=()=>{if(!ask('Bu rota kalıcı olarak silinsin mi?'))return;ARCH=ARCH.filter(x=>x.id!==r.id);saveArch();archSel=null;renderArch()};
+ B.parentElement.scrollTop=0}
+$('#archBody').onclick=e=>{const f=e.target.closest('.fold');if(!f)return;archSel=f.dataset.id;renderArch()};
+$('#bFinish').onclick=()=>{const r=routeItems();if(!S.items.length)return toast('Listede adres yok');
+ const p=r.filter(i=>i.status==='pending').length;
+ if(!ask(p?'Rotada bekleyen '+p+' adres var. Bunlar "teslim edilmedi" olarak kaydedilip dağıtım bitirilsin mi?':'Dağıtım bitirilip Rotalar\'a kaydedilsin mi?'))return;
+ if(!S.route.length)S.route=S.items.map(i=>i.id);finishRoute(true)};
+setInterval(()=>{if(S.runStart&&(tab==='list'||tab==='map')){const e=$('#lrun');if(e&&tab==='list')e.innerHTML=runHtml();const h=document.querySelector('.sh-run');if(h)h.innerHTML=runHtml()}},60000);
 
 /* ---------- canlı takip düğmeleri ---------- */
 let wl=null;async function keepAwake(){try{if(navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
@@ -684,7 +764,7 @@ function navSync(){if(!nav.on||nav.busy)return;const c=navCur();if(c&&c.status!=
 function navTick(force){if(!nav.on||!pos||nav.busy)return;const L=nav.legs[nav.leg],cur=navCur();if(!L||!cur){navRender();return}
  while(nav.step<L.steps.length-1&&L.steps[nav.step].end&&hav(pos,L.steps[nav.step].end)<25){const k0=nav.leg+'-'+nav.step;if(!nav.spoken[k0+'n']&&!nav.arrived){nav.spoken[k0+'n']=1;say('Şimdi '+L.steps[nav.step+1].text)}nav.step++}
  const dStop=hav(pos,cur);
- if(dStop<ARRIVE_M){if(!nav.arrived){nav.arrived=cur.id;clearTimeout(navTimer);nav.exp=true;say('Vardınız. '+(cur.name||''));if(navigator.vibrate)navigator.vibrate([200,100,200])}}
+ if(dStop<ARRIVE_M){if(!nav.arrived){nav.arrived=cur.id;if(!cur.arr){cur.arr=Date.now();save()}clearTimeout(navTimer);nav.exp=true;say('Vardınız. '+(cur.name||''));if(navigator.vibrate)navigator.vibrate([200,100,200])}}
  else if(nav.arrived&&dStop>ARRIVE_M*2){nav.arrived=null;navArm()}
  if(!nav.arrived){const st=L.steps[nav.step],nx=L.steps[nav.step+1];
   if(st&&st.end){const d=hav(pos,st.end),k=nav.leg+'-'+nav.step;
@@ -697,7 +777,7 @@ async function navStart(){try{await initMap()}catch(e){return}
  if(!pos)return toast('Konum alınamadı: konum iznini verin ve GPS\'i açın');
  if(!S.route.length){await buildRoute();if(!S.route.length)return}
  if(!polys.length&&!restoreLine())await drawRoute(pos,true);
- nav.on=true;nav.skip=new Set();S.follow=true;save();renderFollow();keepAwake();
+ nav.on=true;nav.skip=new Set();S.follow=true;if(!S.runStart)S.runStart=Date.now();save();renderFollow();keepAwake();
  $('.top').style.display='none';sheetMode='mini';renderSheet();map.setZoom(18);map.panTo(pos);
  nav.exp=true;navRender();renderFollow();navArm();await navCompute()}
 function navStop(done){nav.on=false;nav.legs=[];if(navLine){navLine.setMap(null);navLine=null}try{speechSynthesis.cancel()}catch(e){}
@@ -785,7 +865,7 @@ async function api(path,body,method){
 function showLogin(msg){const L=$('#login');L.classList.add('on');$('#srvRow').style.display=API?'none':'block';$('#lerr').textContent=msg||'';setTimeout(()=>{try{(API?$('#luser'):$('#lsrv')).focus()}catch(e){}},50)}
 function useState(username){const k='kargo-u-'+username;let raw=null;try{raw=localStorage.getItem(k);if(!raw){const old=localStorage.getItem('kargo-sesli-v1');if(old&&!localStorage.getItem('kargo-legacy-taken')){raw=old;localStorage.setItem('kargo-legacy-taken','1')}}}catch(e){}
  LS=k;S=DEFS();try{Object.assign(S,JSON.parse(raw||'{}'))}catch(e){}delete S.key;S.trail=S.trail||[];S.dist=S.dist||0;if(S.follow===undefined)S.follow=true;if(S.voice===undefined)S.voice=true;
- $('#area').value=S.area||'';$('#auto').checked=S.auto!==false;save()}
+ $('#area').value=S.area||'';$('#auto').checked=S.auto!==false;save();loadArch(username)}
 function applyRole(){const a=isAdmin();$('#bShare').style.display=a?'':'none';$('#tabAdm').style.display=a?'':'none';
  $('#acct').innerHTML=AUTH.user?`<b style="color:var(--ink)">${esc(AUTH.user.name||AUTH.user.username)}</b> (@${esc(AUTH.user.username)})${a?' <span class="chip adm">Yönetici</span>':''}<br>Bugün: ${AUTH.usage?AUTH.usage.geo:0} / ${AUTH.limits?AUTH.limits.geo:'-'} adres araması, ${AUTH.usage?AUTH.usage.route:0} / ${AUTH.limits?AUTH.limits.route:'-'} rota isteği`:'';
  $('#ver').textContent='Kargo Rota '+VERSION}
@@ -866,6 +946,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=async()=>{tab=b.dat
  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+tab));
  clearInterval(admTimer);if(tab==='adm'){loadAdmin();admTimer=setInterval(loadAdmin,30000)}
+ if(tab==='arch'){archSel=null;renderArch()}
  if(tab==='map'){keepAwake();try{await initMap()}catch(e){}}});
 let dip=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('#gInstall').style.display='block'});
 $('#bInstall').onclick=async()=>{if(!dip)return;dip.prompt();try{await dip.userChoice}catch(e){}dip=null;$('#gInstall').style.display='none'};
