@@ -193,6 +193,11 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 .fold .ft{font:700 16.5px var(--fc)}
 .fold .fs{font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .fold .fc{margin-left:auto;text-align:right;font:600 13px var(--fc);color:var(--muted);flex:none}.fold .fc b{display:block;font-size:17px;color:var(--green)}
+#amap{height:340px;margin:0 16px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e5e7eb}
+.alegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 16px 0;font-size:13px;color:var(--muted)}
+.alegend i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.alegend i.dot{width:11px;height:11px;border-radius:50%}
+.alegend i.dash{background:repeating-linear-gradient(90deg,#5B7CFA 0 4px,transparent 4px 8px)}
 .back{display:inline-flex;align-items:center;gap:4px;margin:14px 16px 0;padding:6px 0;background:none;border:0;color:var(--muted);font-weight:600;cursor:pointer}
 .no.st{font-size:11px}
 #toast button{margin-left:10px;background:var(--hivis);color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font-weight:700}
@@ -300,7 +305,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 <div id="toast" role="status"></div>
 <script>
 const IC={"check": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 5 5L20 7\"/></svg>", "undo": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>", "more": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/></svg>", "edit": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20h4L19 9l-4-4L4 16v4Z\"/></svg>", "x": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6 6 18\"/></svg>", "pin": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>"};
-const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v15';let LS='kargo-sesli-v1';
+const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v16';let LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const TRM={ç:'C',ğ:'G',ı:'I',ö:'O',ş:'S',ü:'U',Ç:'C',Ğ:'G',İ:'I',Ö:'O',Ş:'S',Ü:'U'};
@@ -645,7 +650,8 @@ function finishRoute(manual){clearTimeout(doneT);const ids=new Set(S.route);
  if(!done.length)return;
  const ats=done.map(i=>i.at).filter(Boolean),start=S.runStart||(ats.length?Math.min(...ats):Date.now());
  const end=manual?Date.now():(ats.length?Math.max(...ats):Date.now());
- const rec={id:Date.now().toString(36),start,end,area:S.area||'',dist:S.dist||0,route:S.route.slice(),items:JSON.parse(JSON.stringify(done)),manual:!!manual};
+ const rec={id:Date.now().toString(36),start,end,area:S.area||'',dist:S.dist||0,route:S.route.slice(),items:JSON.parse(JSON.stringify(done)),manual:!!manual,
+  trail:S.trail&&S.trail.length>1?encPoly(S.trail.map(x=>({lat:x[0],lng:x[1]}))):'',plan:S.line&&S.line.enc?S.line.enc.slice():null,from:S.start||null};
  if(nav.on)navStop(false);
  ARCH.unshift(rec);if(ARCH.length>60)ARCH.length=60;saveArch();
  S.items=keep;S.route=[];S.dirty=false;S.line=null;S.runStart=null;S.trail=[];S.dist=0;sel=null;
@@ -656,7 +662,7 @@ function undoBar(msg,fn){const e=$('#toast');e.innerHTML='';const s=document.cre
  b.onclick=()=>{e.style.display='none';fn()};e.append(s,b);e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',12000)}
 function restoreRec(id){const k=ARCH.findIndex(r=>r.id===id);if(k<0)return;const r=ARCH[k];
  if(S.route.length)return toast('Ana ekranda devam eden bir rota var. Önce onu bitirin.');
- ARCH.splice(k,1);saveArch();S.items=r.items.concat(S.items);S.route=r.route.filter(x=>S.items.some(i=>i.id===x));S.runStart=r.start;S.dist=r.dist||0;S.dirty=true;S.line=null;
+ ARCH.splice(k,1);saveArch();S.items=r.items.concat(S.items);S.route=r.route.filter(x=>S.items.some(i=>i.id===x));S.runStart=r.start;S.dist=r.dist||0;S.trail=r.trail?decPoly(r.trail).map(p=>[p.lat,p.lng]):[];S.dirty=true;S.line=null;if(trailLine)trailLine.setPath(S.trail.map(x=>({lat:x[0],lng:x[1]})));
  save();renderAll();archSel=null;if(tab==='arch')renderArch();toast('Rota ana ekrana geri alındı')}
 function recCounts(r){const c={delivered:0,failed:0,pending:0};r.items.forEach(i=>c[i.status]=(c[i.status]||0)+1);return c}
 function renderArch(){const B=$('#archBody');if(!B)return;const r=archSel&&ARCH.find(x=>x.id===archSel);
@@ -670,11 +676,32 @@ function renderArch(){const B=$('#archBody');if(!B)return;const r=archSel&&ARCH.
  <div class="kpi"><b>${durTxt(r.end-r.start)}</b><span>Süre</span></div><div class="kpi"><b>${(r.dist/1000).toFixed(1)} km</b><span>Gidilen yol</span></div>
  <div class="kpi"><b>${c.delivered}</b><span>Teslim edildi</span></div><div class="kpi"><b>${c.failed+c.pending}</b><span>Edilemedi${c.pending?' / bekleyen':''}</span></div></div>
  <h2 class="sec">Teslimatlar</h2><div class="rows">${arr.map(i=>`<div class="rw${i.status==='delivered'?' done':''}"><span class="no" style="--c:${colorOf(i)}">${ord(i.id)}</span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${timeLine(i)||(i.status==='pending'?'<div class="tm"><b class="f">Teslim edilmedi</b></div>':'')}</div></div>`).join('')}</div>
+ <h2 class="sec">Harita</h2><div id="amap"></div>
+ <div class="alegend"><span><i style="background:#2563eb"></i>Gidilen yol</span>${r.plan&&r.plan.length?'<span><i class="dash"></i>Planlanan rota</span>':''}<span><i class="dot" style="background:#000"></i>Teslim</span><span><i class="dot" style="background:#9ca3af"></i>Edilemedi</span></div>
+ ${r.trail?'':'<p class="hint">Bu rota için gidilen yol kaydı yok. Yol izi, konum izni açıkken uygulama açık kaldıkça kaydedilir.</p>'}
  <div class="group" style="margin-top:14px"><button class="btn ghost block" id="aRestore">Ana ekrana geri al</button><button class="btn danger block" id="aDel">Bu rotayı sil</button></div>`;
  $('#aBack').onclick=()=>{archSel=null;renderArch()};
  $('#aRestore').onclick=()=>{if(ask('Bu rota ana ekrana geri alınsın mı? Rotalar listesinden çıkar.'))restoreRec(r.id)};
  $('#aDel').onclick=()=>{if(!ask('Bu rota kalıcı olarak silinsin mi?'))return;ARCH=ARCH.filter(x=>x.id!==r.id);saveArch();archSel=null;renderArch()};
- B.parentElement.scrollTop=0}
+ B.parentElement.scrollTop=0;drawArchMap(r,arr,ord)}
+
+let amap=null;
+function drawArchMap(r,arr,ord){const el=$('#amap');if(!el)return;
+ ensureMaps().then(()=>{if(!document.body.contains(el))return;
+  amap=new google.maps.Map(el,{center:{lat:39,lng:35},zoom:12,streetViewControl:false,mapTypeControl:false,fullscreenControl:true,cameraControl:false,clickableIcons:false,gestureHandling:'cooperative',
+   styles:[{featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]}]});
+  const b=new google.maps.LatLngBounds();
+  (r.plan||[]).forEach(s=>{const p=decPoly(s);p.forEach(x=>b.extend(x));new google.maps.Polyline({map:amap,path:p,strokeOpacity:0,zIndex:1,
+   icons:[{icon:{path:'M 0,-1 0,1',strokeOpacity:.7,strokeColor:'#5B7CFA',scale:3},offset:'0',repeat:'14px'}]})});
+  if(r.trail){const p=decPoly(r.trail);p.forEach(x=>b.extend(x));new google.maps.Polyline({map:amap,path:p,strokeColor:'#2563eb',strokeOpacity:.85,strokeWeight:5,zIndex:3})}
+  if(r.from){b.extend(r.from);new google.maps.Marker({map:amap,position:r.from,label:'B',title:'Başlangıç'})}
+  arr.filter(i=>i.lat!=null).forEach(i=>{const pt={lat:i.lat,lng:i.lng};b.extend(pt);const o=ord(i.id);
+   const m=new google.maps.Marker({map:amap,position:pt,zIndex:10,title:(o?o+'. ':'')+(i.name||'')+(i.at?' · '+clk(i.at):''),
+    label:o?{text:String(o),color:'#fff',fontSize:'11px',fontWeight:'700'}:null,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:colorOf(i),fillOpacity:1,strokeColor:'#fff',strokeWeight:2}});
+   const iw=new google.maps.InfoWindow({content:`<div style="font:14px var(--f)"><b>${o?o+'. ':''}${esc(i.name||'(isim yok)')}</b><br>${esc(addrOf(i))}<br>${i.at?(i.status==='failed'?'Edilemedi ':'Teslim ')+clk(i.at):'Teslim edilmedi'}</div>`});
+   m.addListener('click',()=>iw.open({map:amap,anchor:m}))});
+  if(!b.isEmpty()){amap.fitBounds(b,30)}}).catch(()=>{el.innerHTML='<p class="empty">Harita yüklenemedi (internet?)</p>'})}
 $('#archBody').onclick=e=>{const f=e.target.closest('.fold');if(!f)return;archSel=f.dataset.id;renderArch()};
 $('#bFinish').onclick=()=>{const r=routeItems();if(!S.items.length)return toast('Listede adres yok');
  const p=r.filter(i=>i.status==='pending').length;
