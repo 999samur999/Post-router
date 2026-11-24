@@ -23,6 +23,8 @@ async function migrate(db) {
     `CREATE TABLE IF NOT EXISTS geocache(q TEXT PRIMARY KEY, data TEXT, created_at INTEGER)`,
   ];
   await db.batch(sql.map((s) => db.prepare(s)));
+  // v18: kullanıcı kendi Google anahtarını mı kullanıyor (1) yoksa yöneticininkini mi (0)
+  try { await db.prepare(`ALTER TABLE users ADD COLUMN own_key INTEGER DEFAULT 0`).run(); } catch (e) { /* sütun zaten var */ }
   migrated = true;
 }
 
@@ -46,7 +48,7 @@ function same(a, b) { // sabit süreli karşılaştırma
 function cors(env, req) {
   const o = req.headers.get('Origin') || '';
   const allow = env.ALLOWED_ORIGIN ? (o === env.ALLOWED_ORIGIN ? o : env.ALLOWED_ORIGIN) : '*';
-  return { 'Access-Control-Allow-Origin': allow, 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type,Authorization', 'Vary': 'Origin' };
+  return { 'Access-Control-Allow-Origin': allow, 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-User-Key', 'Vary': 'Origin' };
 }
 const J = (env, req, data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...cors(env, req) } });
 const err = (env, req, msg, status = 400) => J(env, req, { error: msg }, status);
@@ -60,7 +62,15 @@ async function userFromToken(env, req) {
   row.token = token;
   return row;
 }
-const pub = (u) => ({ id: u.id, username: u.username, name: u.name, role: u.role });
+const pub = (u) => ({ id: u.id, username: u.username, name: u.name, role: u.role, own_key: u.own_key ? 1 : 0 });
+// Hangi Google anahtarı kullanılacak: "kendi anahtarı" kullanıcılarında telefonun gönderdiği anahtar, diğerlerinde sunucudaki gizli anahtar.
+// Kendi anahtarı olan kullanıcı için yöneticinin anahtarı ASLA kullanılmaz.
+function gkey(env, req, u) {
+  if (!u.own_key) return env.GOOGLE_SERVER_KEY;
+  const k = String(req.headers.get('X-User-Key') || '').trim();
+  return /^[A-Za-z0-9_-]{20,80}$/.test(k) ? k : '';
+}
+const NOKEY = 'Google API anahtarınız tanımlı değil. Ayarlar sekmesinden girin.';
 
 async function bumpUsage(env, uid, col) {
   await env.DB.prepare(`INSERT INTO usage(user_id,day,${col}) VALUES(?,?,1) ON CONFLICT(user_id,day) DO UPDATE SET ${col}=${col}+1`).bind(uid, today()).run();
@@ -103,8 +113,8 @@ async function login(env, req) {
 }
 
 // ---------- adres arama (gizli anahtarla, 30 gün ortak önbellek) ----------
-async function googleGeocode(env, q, bounds) {
-  let url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + encodeURIComponent(q) + '&components=country:TR&language=tr&region=tr&key=' + encodeURIComponent(env.GOOGLE_SERVER_KEY);
+async function googleGeocode(env, q, bounds, key) {
+  let url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' + encodeURIComponent(q) + '&components=country:TR&language=tr&region=tr&key=' + encodeURIComponent(key);
   if (bounds) url += '&bounds=' + bounds;
   const j = await (await fetch(url)).json();
   if (j.status === 'ZERO_RESULTS') return { zero: true };
@@ -116,16 +126,19 @@ async function geocode(env, req, u) {
   const b = await req.json().catch(() => ({}));
   const tries = (Array.isArray(b.tries) ? b.tries : [b.q]).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 3);
   if (!tries.length) return err(env, req, 'Adres boş');
+  const gk = gkey(env, req, u);
+  if (!gk) return J(env, req, { geo: 'none', err: NOKEY }, 400);
   const bounds = typeof b.bounds === 'string' && /^[-\d.,|]+$/.test(b.bounds) ? b.bounds : '';
   for (let k = 0; k < tries.length; k++) {
-    const key = tries[k].toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ');
+    // kendi anahtarını kullananların önbelleği ayrı tutulur (sonuçlar onların hesabına ait)
+    const key = (u.own_key ? 'u' + u.id + '|' : '') + tries[k].toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ');
     let r = null, cached = false;
     const c = await env.DB.prepare(`SELECT data,created_at FROM geocache WHERE q=?`).bind(key).first();
     if (c && c.created_at > now() - CACHE_DAYS * DAY_MS) { r = JSON.parse(c.data); cached = true; await bumpUsage(env, u.id, 'geo_cache'); }
     if (!r) {
       const use = await usageToday(env, u.id);
       if (use.geo >= u.daily_geo) return J(env, req, { geo: 'none', err: 'Günlük adres arama sınırınız doldu' }, 429);
-      try { r = await googleGeocode(env, tries[k], bounds); } catch (e) { return J(env, req, { geo: 'none', err: String(e.message || e) }, 502); }
+      try { r = await googleGeocode(env, tries[k], bounds, gk); } catch (e) { return J(env, req, { geo: 'none', err: String(e.message || e) }, 502); }
       await bumpUsage(env, u.id, 'geo');
       await env.DB.prepare(`INSERT INTO geocache(q,data,created_at) VALUES(?,?,?) ON CONFLICT(q) DO UPDATE SET data=excluded.data, created_at=excluded.created_at`).bind(key, JSON.stringify(r), now()).run();
       if (Math.random() < 0.02) await env.DB.prepare(`DELETE FROM geocache WHERE created_at<?`).bind(now() - CACHE_DAYS * DAY_MS).run();
@@ -145,12 +158,14 @@ async function route(env, req, u) {
   const stops = Array.isArray(b.stops) ? b.stops.filter(ok) : [];
   if (!ok(b.origin) || !stops.length) return err(env, req, 'Başlangıç ve durak gerekli');
   if (stops.length > 10) return err(env, req, 'Bir istekte en fazla 10 durak');
+  const gk = gkey(env, req, u);
+  if (!gk) return J(env, req, { error: NOKEY }, 400);
   const use = await usageToday(env, u.id);
   if (use.route >= u.daily_route) return J(env, req, { error: 'Günlük rota sınırınız doldu' }, 429);
   const L = (x) => ({ location: { latLng: { latitude: +x.lat, longitude: +x.lng } } });
   const r = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': env.GOOGLE_SERVER_KEY,
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': gk,
       'X-Goog-FieldMask': 'routes.legs.distanceMeters,routes.legs.duration,routes.legs.steps.distanceMeters,routes.legs.steps.navigationInstruction,routes.legs.steps.polyline,routes.legs.steps.endLocation' },
     body: JSON.stringify({ origin: L(b.origin), destination: L(stops[stops.length - 1]), intermediates: stops.slice(0, -1).map(L), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE', languageCode: 'tr', units: 'METRIC' }),
   });
@@ -162,11 +177,12 @@ async function route(env, req, u) {
 
 // ---------- yönetim ----------
 async function adminUsers(env, req) {
-  const rows = await env.DB.prepare(`SELECT u.id,u.username,u.name,u.role,u.active,u.daily_geo,u.daily_route,u.created_at,u.last_seen,u.last_stats,u.last_error,u.last_error_at,u.message,
+  const rows = await env.DB.prepare(`SELECT u.id,u.username,u.name,u.role,u.active,COALESCE(u.own_key,0) own_key,u.daily_geo,u.daily_route,u.created_at,u.last_seen,u.last_stats,u.last_error,u.last_error_at,u.message,
       COALESCE(g.geo,0) geo, COALESCE(g.geo_cache,0) geo_cache, COALESCE(g.route,0) route
     FROM users u LEFT JOIN usage g ON g.user_id=u.id AND g.day=? ORDER BY u.role='admin' DESC, u.name COLLATE NOCASE`).bind(today()).all();
   const month = today().slice(0, 7);
-  const tot = await env.DB.prepare(`SELECT COALESCE(SUM(geo),0) geo, COALESCE(SUM(geo_cache),0) geo_cache, COALESCE(SUM(route),0) route FROM usage WHERE day LIKE ?`).bind(month + '%').first();
+  // aylık toplam: yalnız yöneticinin anahtarını kullananlar (kendi anahtarı olanların ücreti size yansımaz)
+  const tot = await env.DB.prepare(`SELECT COALESCE(SUM(g.geo),0) geo, COALESCE(SUM(g.geo_cache),0) geo_cache, COALESCE(SUM(g.route),0) route FROM usage g JOIN users u ON u.id=g.user_id WHERE g.day LIKE ? AND COALESCE(u.own_key,0)=0`).bind(month + '%').first();
   return J(env, req, { users: rows.results.map((x) => ({ ...x, last_stats: x.last_stats ? JSON.parse(x.last_stats) : null })), month: tot, now: now() });
 }
 async function adminCreate(env, req) {
@@ -178,8 +194,8 @@ async function adminCreate(env, req) {
   if (password.length < 6) return err(env, req, 'Şifre en az 6 karakter olmalı');
   if (await env.DB.prepare(`SELECT id FROM users WHERE username=?`).bind(username).first()) return err(env, req, 'Bu kullanıcı adı zaten var');
   const salt = rand(16);
-  await env.DB.prepare(`INSERT INTO users(username,name,pass_hash,salt,role,active,daily_geo,daily_route,created_at) VALUES(?,?,?,?,?,?,?,?,?)`)
-    .bind(username, name || username, await hashPw(password, salt), salt, 'courier', 1, +b.daily_geo || DEF_GEO, +b.daily_route || DEF_ROUTE, now()).run();
+  await env.DB.prepare(`INSERT INTO users(username,name,pass_hash,salt,role,active,daily_geo,daily_route,created_at,own_key) VALUES(?,?,?,?,?,?,?,?,?,?)`)
+    .bind(username, name || username, await hashPw(password, salt), salt, 'courier', 1, +b.daily_geo || DEF_GEO, +b.daily_route || DEF_ROUTE, now(), b.own_key ? 1 : 0).run();
   return J(env, req, { ok: true });
 }
 async function adminAction(env, req, id) {
@@ -201,6 +217,7 @@ async function adminAction(env, req, id) {
     }
     case 'limits': await db.prepare(`UPDATE users SET daily_geo=?, daily_route=? WHERE id=?`).bind(Math.max(0, +b.daily_geo || 0), Math.max(0, +b.daily_route || 0), id).run(); break;
     case 'message': await db.prepare(`UPDATE users SET message=? WHERE id=?`).bind(String(b.message || '').slice(0, 300) || null, id).run(); break;
+    case 'keymode': await db.prepare(`UPDATE users SET own_key=? WHERE id=?`).bind(b.own_key ? 1 : 0, id).run(); break;
     case 'clear_error': await db.prepare(`UPDATE users SET last_error=NULL, last_error_at=NULL WHERE id=?`).bind(id).run(); break;
     case 'delete': await db.batch([db.prepare(`DELETE FROM sessions WHERE user_id=?`).bind(id), db.prepare(`DELETE FROM usage WHERE user_id=?`).bind(id), db.prepare(`DELETE FROM users WHERE id=?`).bind(id)]); break;
     default: return err(env, req, 'Bilinmeyen işlem');
@@ -221,7 +238,7 @@ export default {
       if (!u) return err(env, req, 'Oturum geçersiz, tekrar giriş yapın', 401);
       if (p === '/api/me') {
         await env.DB.prepare(`UPDATE users SET last_seen=? WHERE id=?`).bind(now(), u.id).run();
-        return J(env, req, { user: pub(u), mapsKey: env.MAPS_BROWSER_KEY || '', limits: { geo: u.daily_geo, route: u.daily_route }, usage: await usageToday(env, u.id) });
+        return J(env, req, { user: pub(u), ownKey: !!u.own_key, mapsKey: u.own_key ? '' : (env.MAPS_BROWSER_KEY || ''), limits: { geo: u.daily_geo, route: u.daily_route }, usage: await usageToday(env, u.id) });
       }
       if (p === '/api/logout' && req.method === 'POST') { await env.DB.prepare(`DELETE FROM sessions WHERE token=?`).bind(u.token).run(); return J(env, req, { ok: true }); }
       if (p === '/api/geocode' && req.method === 'POST') return await geocode(env, req, u);
