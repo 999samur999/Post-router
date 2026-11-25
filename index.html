@@ -328,7 +328,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 <div id="toast" role="status"></div>
 <script>
 const IC={"check": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 5 5L20 7\"/></svg>", "undo": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>", "more": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/></svg>", "edit": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20h4L19 9l-4-4L4 16v4Z\"/></svg>", "x": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6 6 18\"/></svg>", "pin": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>"};
-const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v19';let LS='kargo-sesli-v1';
+const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v20';let LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const TRM={ç:'C',ğ:'G',ı:'I',ö:'O',ş:'S',ü:'U',Ç:'C',Ğ:'G',İ:'I',Ö:'O',Ş:'S',Ü:'U'};
@@ -920,8 +920,14 @@ let API='',AUTH={token:null,user:null,mapsKey:'',ownKey:false},UKEY='';
 const browserKey=()=>AUTH.ownKey?UKEY:AUTH.mapsKey;
 try{AUTH.token=localStorage.getItem('kargo-token')}catch(e){}
 const isAdmin=()=>!!(AUTH.user&&AUTH.user.role==='admin');
-async function loadConfig(){try{const r=await fetch('config.json',{cache:'no-store'});if(r.ok){const j=await r.json();API=String(j.api||'').replace(/\/+$/,'')}}catch(e){}
- if(!API){try{API=localStorage.getItem('kargo-api')||''}catch(e){}}}
+// Sunucu adresi uygulamanın içinde de yazılı: config.json okunamasa bile kimseye adres sorulmaz
+const DEFAULT_API='https://kargo-rota.musadilek999.workers.dev';
+async function loadConfig(){try{const r=await fetch('config.json',{cache:'no-store'});if(r.ok){
+  // telefon klavyesinin eğik tırnaklarını düzelterek oku
+  const s=(await r.text()).replace(/[\u201C\u201D\u201E\u2033]/g,'"').replace(/^\uFEFF/,'');const j=JSON.parse(s);API=String(j.api||'').trim().replace(/\/+$/,'')}}catch(e){}
+ if(!/^https:\/\//.test(API))API='';
+ if(!API){try{API=localStorage.getItem('kargo-api')||''}catch(e){}}
+ if(!API)API=DEFAULT_API}
 async function api(path,body,method){
  if(!API)throw new Error('Sunucu adresi tanımlı değil');
  let r;try{r=await fetch(API+path,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json',...(AUTH.token?{Authorization:'Bearer '+AUTH.token}:{}),...(AUTH.ownKey&&UKEY?{'X-User-Key':UKEY}:{})},body:body?JSON.stringify(body):undefined})}
