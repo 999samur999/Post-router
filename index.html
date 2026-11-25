@@ -29,6 +29,9 @@ h2.sec{font:700 17px var(--fc);margin:22px 16px 8px}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 /* ekle ekranı */
 #p-add{padding-bottom:24px}
+#p-add>*,#p-list>*,#p-arch>*,#p-set>*,#p-adm>*{flex-shrink:0}
+.vhint{display:none;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:#FFF1F0;color:#B42318;font-weight:600;font-size:14.5px}.vhint.on{display:block}
+#txt.live{border-color:#E5484D;box-shadow:0 0 0 3px rgba(229,72,77,.15)}
 .entry{position:sticky;top:0;z-index:2;background:var(--bg);padding:6px 16px 12px}
 .area{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px;margin:0 16px 4px;color:var(--muted)}
 .area input{flex:1;border:0;outline:0;background:none;padding:12px 0;font-size:15px;color:var(--ink)}
@@ -217,12 +220,13 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
    <button class="btn primary grow" id="bAdd">Ekle</button>
    <button class="btn ghost" id="bClr">Temizle</button>
   </div>
-  <label class="switch-row"><span>Söyleyince otomatik ekle</span><input type="checkbox" id="auto" class="sw"></label>
+  <div class="vhint" id="vhint" role="status">Dinleniyor… Adresi söyleyin, ara verebilirsiniz. Bitince mikrofona tekrar basın.</div>
+  <label class="switch-row"><span>Kayıt bitince otomatik ekle</span><input type="checkbox" id="auto" class="sw"></label>
  </div>
- <p class="hint">Sıra: ad soyad, sokak, bina no. İsterseniz daire, kat veya mahalle ekleyin. Sesli komutlar: “teslim edildi”, “edilemedi”.</p>
+ <p class="hint">Mikrofona bir kez basın, adresi söyleyin, bitince tekrar basın. Sıra: ad soyad, sokak, bina no. İsterseniz daire, kat veya mahalle ekleyin. Sesli komutlar: “teslim edildi”, “edilemedi”.</p>
  <div id="banner"></div>
  <button class="btn primary" id="bGo"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 21 3l-8 18-2-8-8-2Z"/></svg>Rotayı oluştur</button>
- <h2 class="sec">Son eklenenler</h2>
+ <h2 class="sec" id="recentH">Eklenenler</h2>
  <div id="recent" class="rows"></div>
 </section>
 
@@ -324,7 +328,7 @@ nav button.on{color:var(--ink);border-top-color:var(--hivis)}
 <div id="toast" role="status"></div>
 <script>
 const IC={"check": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 5 5L20 7\"/></svg>", "undo": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>", "more": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/></svg>", "edit": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 20h4L19 9l-4-4L4 16v4Z\"/></svg>", "x": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6 6 18\"/></svg>", "pin": "<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z\"/><circle cx=\"12\" cy=\"10\" r=\"2.5\"/></svg>"};
-const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v18';let LS='kargo-sesli-v1';
+const MAX=300,ARRIVE_M=30,DWELL_MS=15000,VERSION='v19';let LS='kargo-sesli-v1';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const TRM={ç:'C',ğ:'G',ı:'I',ö:'O',ş:'S',ü:'U',Ç:'C',Ğ:'G',İ:'I',Ö:'O',Ş:'S',Ü:'U'};
@@ -458,22 +462,35 @@ $('#area').value=S.area||'';$('#area').onchange=()=>{S.area=$('#area').value.tri
 $('#auto').checked=S.auto!==false;$('#auto').onchange=()=>{S.auto=$('#auto').checked;save()};
 
 /* ---------- sesli giriş ---------- */
-let rec=null,listening=false,pinTarget=null;
-function setMic(){const b=$('#bMic');b.classList.toggle('on',listening);b.setAttribute('aria-pressed',listening?'true':'false');b.setAttribute('aria-label',listening?'Dinlemeyi durdur':'Sesle ekle')}
+let rec=null,listening=false,pinTarget=null,vBuf='',vSess=[],vInt='',vBase='',vTimer=null;
+function setMic(){const b=$('#bMic');b.classList.toggle('on',listening);b.setAttribute('aria-pressed',listening?'true':'false');b.setAttribute('aria-label',listening?'Kaydı bitir':'Sesle ekle');
+ $('#vhint').classList.toggle('on',listening);$('#txt').classList.toggle('live',listening)}
 function markNext(st){const n=nextStop();if(!n)return toast('Sıradaki durak yok (önce rota oluşturun)');upd(n.id,{status:st});toast((st==='delivered'?'Teslim edildi: ':'Edilemedi: ')+(n.name||''))}
-function handleSpeech(s){const n=norm(s);
- if(/^(TESLIM EDILDI|TESLIM ETTIM|TAMAM)$/.test(n))return markNext('delivered');
- if(/^(EDILEMEDI|TESLIM EDILEMEDI)$/.test(n))return markNext('failed');
- if($('#auto').checked&&!editId)addEntry(s);else $('#txt').value=(($('#txt').value+' ')+s).trim()}
-function startRec(SR){rec=new SR();rec.lang='tr-TR';rec.interimResults=false;rec.maxAlternatives=1;
- rec.onresult=e=>{handleSpeech(e.results[e.results.length-1][0].transcript)};
- rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){listening=false;toast('Mikrofon izni verin')}};
- rec.onend=()=>{if(listening)setTimeout(()=>{try{startRec(SR)}catch(x){listening=false}setMic()},250);else setMic()};
+function handleSpeech(s){s=s.replace(/\s+/g,' ').trim();if(!s)return;const n=norm(s);
+ if(/^(TESLIM EDILDI|TESLIM ETTIM|TAMAM)$/.test(n)){$('#txt').value=vBase;return markNext('delivered')}
+ if(/^(EDILEMEDI|TESLIM EDILEMEDI)$/.test(n)){$('#txt').value=vBase;return markNext('failed')}
+ if($('#auto').checked&&!editId){addEntry(s);$('#txt').value=vBase}else $('#txt').value=((vBase+' ')+s).trim()}
+// bir oturumdaki kesin sonuçlar (bazı Android sürümleri her sonuçta önceki metni tekrar verir: onu ayıkla)
+function sessText(){const a=vSess.filter(Boolean);return a.filter((x,i)=>!a.slice(i+1).some(y=>y.startsWith(x))).join(' ')}
+const vText=()=>[vBuf,sessText(),vInt].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+function showLive(){$('#txt').value=[vBase,vText()].filter(Boolean).join(' ')}
+function startRec(SR){rec=new SR();rec.lang='tr-TR';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;vSess=[];vInt='';
+ rec.onresult=e=>{vInt='';for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)vSess[i]=r[0].transcript.trim();else vInt+=' '+r[0].transcript}
+  vInt=vInt.trim();showLive()};
+ rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){listening=false;setMic();toast('Mikrofon izni verin')}};
+ // telefon sessizlikte dinlemeyi kendisi kapatır: kullanıcı bitirene kadar söylenenleri koruyup yeniden başlat
+ rec.onend=()=>{vBuf=[vBuf,sessText()].filter(Boolean).join(' ');vSess=[];vInt='';
+  if(listening)setTimeout(()=>{if(!listening)return;try{startRec(SR)}catch(x){stopRec()}},150);else setMic()};
  try{rec.start()}catch(e){}}
+function stopRec(){if(!listening)return;listening=false;clearTimeout(vTimer);const r=rec;rec=null;
+ const said=vText();vBuf='';vSess=[];vInt='';try{r&&r.abort()}catch(e){}setMic();
+ $('#txt').value=vBase;if(said)handleSpeech(said);else toast('Ses algılanmadı, tekrar deneyin')}
 $('#bMic').onclick=async()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR)return toast('Bu tarayıcı sesli girişi desteklemiyor, Chrome kullanın');
- if(listening){listening=false;try{rec.stop()}catch(e){}setMic();return}
- listening=true;setMic();try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}startRec(SR)};
+ if(listening)return stopRec();
+ vBase=$('#txt').value.trim();vBuf='';listening=true;setMic();try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}
+ clearTimeout(vTimer);vTimer=setTimeout(()=>{if(listening){stopRec();toast('Kayıt 3 dakika sonra kendiliğinden bitirildi')}},180000);
+ startRec(SR)};
 
 /* ---------- konum + otomatik teslim ---------- */
 let dwell={id:null,t:0};
@@ -631,7 +648,7 @@ function renderList(){
  const pend=S.items.filter(i=>i.status==='pending').length;$('#lcnt').textContent=S.items.length?pend+' bekliyor':'';$('#lempty').style.display=S.items.length?'none':'block';
  $('#lrun').innerHTML=S.items.length?runHtml():'';$('#lrun').style.display=S.items.length?'flex':'none'}
 $('#list').onclick=e=>{const b=e.target.closest('button');if(!b)return;act(b.dataset.id,b.dataset.a)};
-function renderRecent(){$('#recent').innerHTML=S.items.slice(-8).reverse().map(i=>`<div class="rw${DUP.has(i.id)?' dup':''}"><span class="dotc" style="--c:${colorOf(i)}"></span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${geoNote(i)?`<div class="warn">${esc(geoNote(i))}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}</div><button class="ib" data-e="1" data-id="${i.id}" aria-label="Düzenle">${IC.edit}</button><button class="ib" data-id="${i.id}" aria-label="Geri al">${IC.x}</button></div>`).join('')}
+function renderRecent(){$('#recentH').textContent=S.items.length?'Eklenenler ('+S.items.length+')':'Eklenenler';$('#recent').innerHTML=S.items.slice().reverse().map(i=>`<div class="rw${DUP.has(i.id)?' dup':''}"><span class="dotc" style="--c:${colorOf(i)}"></span><div class="col"><div class="nm">${esc(i.name||'(isim yok)')}</div><div class="ad">${esc(addrOf(i))}</div>${geoNote(i)?`<div class="warn">${esc(geoNote(i))}</div>`:''}${DUP.has(i.id)?`<div class="dupw">${esc(dupText(i))}</div>`:''}</div><button class="ib" data-e="1" data-id="${i.id}" aria-label="Düzenle">${IC.edit}</button><button class="ib" data-id="${i.id}" aria-label="Geri al">${IC.x}</button></div>`).join('')}
 $('#recent').onclick=e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;if(b.dataset.e){startEdit(id);return}S.items=S.items.filter(i=>i.id!==id);S.route=S.route.filter(x=>x!==id);save();renderAll()};
 /* işlem menüsü */
 function openAct(id){const i=find(id);if(!i)return;const o=orderOf(id),A=$('#act');
